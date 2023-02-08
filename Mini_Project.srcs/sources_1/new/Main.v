@@ -47,8 +47,9 @@ module Main(
     wire m_interr;
     wire[19:0] d_data;
     
+    parameter adc_channel = 7'h16; //XA1 (XADC CHANNEL 6)
     
-    CURR_CTRL over_curr(JXADC[0], JXADC[4], sysClk, m_interr, d_data); //0=XA1_P ; 4=XA1_N (XADC CHANNEL 6)
+    CURR_CTRL over_curr(JXADC[0], JXADC[4], adc_channel, sysClk, m_interr, d_data); //0=XA1_P ; 4=XA1_N (XADC CHANNEL 6)
     
     DISPLAY curr_display(d_data, sysClk, 4'b1000, seg, dp, an);
     

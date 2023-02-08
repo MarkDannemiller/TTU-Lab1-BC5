@@ -57,10 +57,10 @@ module PWM_SRC (input clk, input [3:0] mode, output pwm);
     begin
         count = count + 1;
         if (count < p_duty) begin
-            PWM_REG = 1;
+            PWM_REG <= 1;
         end
         else if (count < pwm2system * 100) begin
-            PWM_REG = 0;
+            PWM_REG <= 0;
         end
         else begin
             count = 0;
