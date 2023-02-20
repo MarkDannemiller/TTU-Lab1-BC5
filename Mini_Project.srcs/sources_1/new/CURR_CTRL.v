@@ -43,7 +43,7 @@ module CURR_CTRL(
     );
     
     wire [15:0] xa_data;  // ADC value; useful part are only [15:4] bits
-    wire xadc_en; //for adc to renable itsefl when finished sampling
+    wire xadc_en; //for adc to renable itself when finished sampling
     wire ready;
     
     reg [6:0] Address_in; //
@@ -129,6 +129,8 @@ module CURR_CTRL(
         end
     end
     
+    reg[15:0] peak_data = 0;
+    
     //binary to decimal conversion
     always @ (posedge(clk)) begin
         case (state)
@@ -137,17 +139,20 @@ module CURR_CTRL(
             count <= 'b0;
         end
         S_FRAME_WAIT: begin
+            if(xa_data > peak_data)
+                peak_data = xa_data;
             if (count >= 10000000) begin
-                if (xa_data > 16'hFFD0) begin
+                if (peak_data > 16'hFFD0) begin
                     curr_data[19:5] <= 20'b100011000010000; //1.00
                     curr_data[4] <= 1'b1;
                     curr_data[3:0] <= direction ? 4'hF : 4'hB; //1.00F | 1.00B
                     state <= S_IDLE;
                 end else begin
                     b2d_start <= 1'b1;
-                    b2d_din <= xa_data;
+                    b2d_din <= peak_data;
                     state <= S_CONVERSION;
                 end
+                peak_data = 0;
             end else
                 count <= count + 1'b1;
         end

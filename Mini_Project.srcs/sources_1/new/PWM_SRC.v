@@ -23,7 +23,7 @@
 module PWM_SRC (input clk, input [3:0] mode, output pwm);
 
     //parameter pwm2system = 2; //SET GLOBAL FREQUENCY CONVERSION FOR MODULE HERE (set to 1000000 for 100hz, 10 for test)
-    parameter pwm2system = 10000; //SET GLOBAL FREQUENCY CONVERSION FOR MODULE HERE (set to 1000000 for 100hz, 10 for test)
+    parameter pwm2system = 10000; //SET GLOBAL FREQUENCY CONVERSION FOR MODULE HERE (set to 10000 for 100hz, 10 for test)
     parameter s = pwm2system == 0 ? 1 : $clog2(2 * pwm2system * 100); //DYNAMIC SIZING FOR FREQUENCY
 
     wire[21:0] p_duty; 
