@@ -22,5 +22,9 @@
 
 module IR_INPUT(
 
+input clk,
+input IR_Pin,
+output LED
     );
+assign LED = IR_Pin; 
 endmodule

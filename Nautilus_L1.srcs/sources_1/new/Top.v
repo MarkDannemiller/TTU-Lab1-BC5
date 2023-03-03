@@ -42,7 +42,9 @@ module Top (
     input vn_in,
     
     //MOTOR CONTROL
-    output wire[7:0] JA
+    output wire[7:0] JA,
+    output wire[6:0] JB,
+    input wire JB_IR
     );
     
     //PMOD PINS 5, 6, 11, 12 ARE VCC AND GNDS
@@ -88,5 +90,8 @@ module Top (
         .IN1(JA[IN1_PMOD]),
         .IN2(JA[IN2_PMOD]));
 //#endregion
-
+IR_INPUT IR (
+    .clk(sysClk),
+    .IR_Pin(JB_IR),
+    .LED(JB[1]));
 endmodule
