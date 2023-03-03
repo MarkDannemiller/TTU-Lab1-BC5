@@ -22,6 +22,7 @@
 //PWM MODULE THAT CONVERTS THE 100MHZ TO 100HZ
 module PWM_SRC (input clk, input [3:0] mode, output pwm);
 
+    //parameter pwm2system = 2; //SET GLOBAL FREQUENCY CONVERSION FOR MODULE HERE (set to 1000000 for 100hz, 10 for test)
     parameter pwm2system = 10000; //SET GLOBAL FREQUENCY CONVERSION FOR MODULE HERE (set to 10000 for 100hz, 10 for test)
     parameter s = pwm2system == 0 ? 1 : $clog2(2 * pwm2system * 100); //DYNAMIC SIZING FOR FREQUENCY
 
@@ -67,3 +68,25 @@ module PWM_SRC (input clk, input [3:0] mode, output pwm);
     end
 
 endmodule
+
+
+
+
+/*        DEPRECATED USE OF P_DUTY AND N_DUTY       
+assign n_duty = (mode==4'b0000)? 21'd94*pwm2system:
+                (mode==4'b0001)? 21'd88*pwm2system:
+                (mode==4'b0010)? 21'd82*pwm2system:
+                (mode==4'b0011)? 21'd76*pwm2system:
+                (mode==4'b0100)? 21'd70*pwm2system:
+                (mode==4'b0101)? 21'd64*pwm2system:
+                (mode==4'b0110)? 21'd58*pwm2system:
+                (mode==4'b0111)? 21'd52*pwm2system:
+                (mode==4'b1000)? 21'd46*pwm2system:
+                (mode==4'b1001)? 21'd40*pwm2system:
+                (mode==4'b1010)? 21'd34*pwm2system:
+                (mode==4'b1011)? 21'd28*pwm2system:
+                (mode==4'b1100)? 21'd22*pwm2system:
+                (mode==4'b1101)? 21'd16*pwm2system:
+                (mode==4'b1110)? 21'd10*pwm2system:
+                (mode==4'b1111)? 21'd4*pwm2system:
+                21'd0;*/
