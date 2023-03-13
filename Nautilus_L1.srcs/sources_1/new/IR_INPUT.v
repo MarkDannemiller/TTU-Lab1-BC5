@@ -20,13 +20,164 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
+/*
+KEY CONCEPTS:
+1 = DOT
+111 = DASH
+0 = PERIOD BETWEEN UNITS
+000 = END CHARACTER
+
+In this module, data is processed from the IR receiver into a bit stream.  Each bit is measured in time
+and entered into a time register such that any random noise can be filtered out
+*/
+
 module IR_INPUT(
 
+input enable,
 input clk,
 input IR_Pin,
-output LED
+output LED,
+output reg overflow
     );
-assign LED = IR_Pin; 
+assign LED = IR_Pin;
+
+localparam true = 1;
+localparam false = 0;
+localparam START_CHAR_MS = 180;
+localparam UNIT_THRESHOLD = 0.75; //MIN AMOUNT OF TIME A UNIT WAS PROCESSED FOR IT TO BE CONSIDERED ACCURATE
+localparam CHAR_MS = 60; //60 MS IS EXPECTED PER CHARACTER
+
+reg start;
+reg reset;
+reg found_start_char; //reg storing bool value of whether start character is found
+
+reg[59:0] bitstream; //stream of data that should only ever be 20 units of data long before end character
+reg incoming_bit;
+reg[59:0] new_val;
+
+//DECODER VALUES
+reg[59:0] process_stream; //stream that will only update when full stream is processed and sent to decoder
+//reg[471:0] timestream;
+reg decode_en;
+
+reg[5:0] bit_index;
+
+//255ms max time per bit accounts for a maximum of 4 units (0.06s)*4=240ms observed which accounts for dashes and start/end strings
+//reg[471:0] timestream; //time in ms each on/off bit was observed (60 bit slots * 240ms each)
+reg[16:0] ms_counter; //counter that counts to 1ms
+reg[7:0] ms_timer; //timer that counts up to 255ms maximum
+
+reg[8:0] time_index;
+
+
+initial begin
+    bitstream <= 60'b0;
+    process_stream <= 60'b0;
+    //timestream = 472'b0;
+    bit_index <= 0;
+    time_index <= 0;
+    start <= false;
+    reset <= false;
+    decode_en <= 0;
+end
+
+always@(posedge clk) begin
+
+    //disable module and reset registers
+    if(!enable) begin
+        bitstream = 60'b0;
+        //timestream = 472'b0;
+        start = false;
+    end
+    //IF ENABLED, PROCESS IR MORSE CODE
+    else begin
+        //ONLY START PROCESSING ONCE IR IS DETECTED. I.E: DETECTING OFF FOR A LONG TIME IS NOT THE BEGINNING
+        //ALSO RESTARTS UPON RESET
+        if((IR_Pin == 1 && !start) || reset) begin
+            start <= true;
+            reset <= false;
+            incoming_bit <= IR_Pin;
+            ms_counter <= 0;
+            ms_timer <= 0;
+            bit_index <= 0;
+            time_index <= 0;
+            found_start_char <= 0;
+            overflow <= false;
+        end
+        if(start) begin
+            //TRACK MS TIME THAT ON BIT HAS BEEN RECEIVED
+            ms_counter = ms_counter + 1;
+            if(ms_counter > 999) begin
+                ms_timer = ms_timer + 1; //increment in ms
+                ms_counter = 0;
+            end
+
+            //IF IR HAS CHANGED
+            if(incoming_bit != IR_Pin) begin
+                //program monitors until finding start bit
+                if(!found_start_char && incoming_bit == 0) begin
+                    found_start_char <= true;
+                end
+                else if(found_start_char) begin
+                    //the case that the start/end character was found
+                    if(incoming_bit == 0 && ms_timer > START_CHAR_MS * UNIT_THRESHOLD) begin
+                        reset <= true;
+                        process_stream <= bitstream;
+                    end
+                    else begin
+                        //was 1 processed?
+                        if(ms_timer >= UNIT_THRESHOLD * CHAR_MS && ms_timer < UNIT_THRESHOLD* CHAR_MS *2) begin
+                            //overflow condition
+                            if(bit_index > 59) begin
+                                overflow <= true;
+                            end
+                            
+                            //new_val is 1 or 0
+                            new_val = incoming_bit << bit_index; //shift incoming bit to correct position in 60 bit array
+                            bit_index = bit_index + 1;
+                        end
+                        //or was 11 processed? (shouldn't be)
+                        else if (ms_timer >= UNIT_THRESHOLD * CHAR_MS * 2 && ms_timer < UNIT_THRESHOLD * CHAR_MS *2) begin
+                            //overflow condition
+                            if(bit_index + 1 > 59) begin
+                                overflow <= true;
+                            end
+                            
+                            //new_val is 11 or 00
+                            new_val = (incoming_bit << bit_index) | (incoming_bit << bit_index+1);
+                            bit_index = bit_index + 2;
+                        end
+                        //or was 111 processed? (dash case)
+                        else if(ms_timer >= UNIT_THRESHOLD * CHAR_MS * 3) begin
+                            //overflow condition
+                            if(bit_index + 2 > 59) begin
+                                overflow <= true;
+                            end
+                            
+                            //new_val is 111 or 000 (note, 000 should have been caught as an end character)
+                            new_val = (incoming_bit << bit_index) | (incoming_bit << bit_index+1) | (incoming_bit << bit_index+2);
+                            bit_index = bit_index + 2;
+                        end
+                        //otherwise the bit that was processed was too short
+                        else begin
+                            new_val = 60'b0;
+                        end
+                        
+                         bitstream = bitstream | new_val;
+                    end
+                end
+            end
+            incoming_bit = IR_Pin;
+        end
+    end
+end
+
+endmodule
+
+
+module MORSE_DECODER (input enable, input[59:0] bitstream, output ready, output [3:0] out);
+
+
 endmodule
 
 /**
