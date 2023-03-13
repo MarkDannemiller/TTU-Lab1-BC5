@@ -19,34 +19,24 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-//ADC AUX channel 5
-//https://digilent.com/reference/programmable-logic/basys-3/demos/xadc
-//https://sites.google.com/a/umn.edu/mxp-fpga/home/vivado-notes/basys3-analog-to-digital-converter-xadc?pli=1
+
 module CURR_CTRL(
     input CURR_CTRL_EN, //OFF/0 = EN
     input direction,
-    input an_pos_in, //JXADC[0] => Ch6 XA1_P
-    input an_neg_in, //JXADC[4] -> Ch6 XA1_N
-    input vauxp7,
-    input vauxn7,
-    input vauxp14,
-    input vauxn14,
-    input vauxp15,
-    input vauxn15,
-    input vp_in,
-    input vn_in,
-    input wire [7:0] channel_out,
     input clk,
     output interrupt,
     output [19:0] data,
-    output reg [15:0] led
+    output reg [15:0] led,
+    
+    input[15:0] raw_xa_data,
+    input[7:0] xa_channel, //varying channel from ADC_Handler
+    input[7:0] m_channel, //desired current channel for this module to monitor
+    input xa_ready
     );
     
-    wire [15:0] xa_data;  // ADC value; useful part are only [15:4] bits
-    wire xadc_en; //for adc to renable itself when finished sampling
-    wire ready;
+    //localparam CH6 = 8'h16; //desired xadc channel
     
-    reg [6:0] Address_in; //
+    reg[15:0] xa_data; //only updates when xa_channel = CH6
     
     //binary to decimal converter signals
     reg [32:0] count;
@@ -79,35 +69,14 @@ module CURR_CTRL(
     parameter max_curr = 16'hFFF0; //replace with maximum current threshold; 0xFFD0 = DEFAULT
     assign data = overflow ? 20'b10000111110000000000 : curr_data; //display O.F or current
     assign interrupt = overflow ? 1 : 0; //INTERRUPT MOTOR CONTROL = 1
-    
-    //xadc instantiation connect the eoc_out .den_in to get continuous conversion
-    xadc_wiz_0 CoolADCd (
-        .daddr_in(Address_in),        // input wire [6 : 0] daddr_in
-        .dclk_in(clk),          // input wire dclk_in
-        .den_in(xadc_en),            // input wire den_in
-        .di_in(0),              // input wire9 [15 : 0] di_in
-        .dwe_in(0),            // input wire dwe_in
-        .busy_out(),        // output wire busy_out
-        .vauxp6(an_pos_in),            // note since vauxn6, channel 6, is used  .daddr_in(ADC_ADDRESS), ADC_ADRESS = 16h, i.e., 010110 
-        .vauxn6(an_neg_in),            // note since vauxn6, channel 6, is used  .daddr_in(ADC_ADDRESS), ADC_ADRESS = 16h, i.e., 010110     
-        .vauxp7(vauxp7),
-        .vauxn7(vauxn7),
-        .vauxp14(vauxp14),
-        .vauxn14(vauxn14),
-        .vauxp15(vauxp15),
-        .vauxn15(vauxn15),
-        .vn_in(vn_in), 
-        .vp_in(vp_in),
-        .alarm_out(),      // output wire alarm_out
-        .do_out(xa_data),            // output wire [15 : 0] xa_data
-        .eoc_out(xadc_en),          // output wire eoc_out
-        .channel_out(),  // output wire [4 : 0] channel_out
-        .drdy_out(ready)
-    );
+
     
     //led visual dmm              
-    always @(posedge(clk)) begin            
-        if(ready == 1'b1) begin
+    always @(posedge(clk)) begin
+   
+        if(xa_ready == 1'b1 && xa_channel == m_channel) begin
+            xa_data = raw_xa_data;
+            
             case (xa_data[15:12])
             1:  led <= 16'b11;
             2:  led <= 16'b111;
@@ -184,7 +153,6 @@ module CURR_CTRL(
     
 //HANDLING OF OVERFLOW AND LATCH
     always @(posedge(clk)) begin
-        Address_in <= channel_out; // 16=XA1/AD6 1e=14
         
         case(o_state)
             //NORMAL OPERATION OF MOTOR

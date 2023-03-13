@@ -11,7 +11,7 @@
 // Tool Versions: 
 // Description: 
 // 
-// Dependencies: 
+// Deendencies: 
 // 
 // Revision: 0.1
 // Revision 0.01 - File Created
@@ -43,55 +43,167 @@ module Top (
     
     //MOTOR CONTROL
     output wire[7:0] JA,
-    output wire[6:0] JB,
-    input wire JB_IR
+    
+    //IR
+    output wire[2:0] JB,
+    input wire JB0_IPS,
+    input wire JB1_IPS,
+    input wire JB2_IPS,
+    input wire JB3_IPS,
+    input wire JB_IR,
+    
+    //MARBLE DELIVERY PORTS
+    output wire[7:0] JC
+    
     );
     
-    //PMOD PINS 5, 6, 11, 12 ARE VCC AND GNDS
+    
+    
+    //LEFT MOTOR: PMOD PINS 5, 6, 11, 12 ARE VCC AND GNDS
     parameter ENA_PMOD = 0; //PIN 1
-    parameter IN1_PMOD = 4; //PIN 9
-    parameter IN2_PMOD = 5; //PIN 10
+    parameter IN1_PMOD = 1; //PIN 2
+    parameter IN2_PMOD = 2; //PIN 3        
+    //LEFT MOTOR INTERRUPT AND CURRENT DISPLAY DATA
+    wire m_interr_left;
+    wire[19:0] d_data_left;
     
-    wire m_interr;
-    wire[19:0] d_data;
+    //RIGHT MOTOR: PMOD PINS 5, 6, 11, 12 ARE VCC AND GNDS
+    parameter ENB_PMOD = 4; //PIN 7
+    parameter IN3_PMOD = 5; //PIN 8
+    parameter IN4_PMOD = 6; //PIN 9
+    //RIGHT MOTOR INTERRUPT AND CURRENT DISPLAY DATA
+    wire m_interr_right;
+    wire[19:0] d_data_right;
     
-    parameter adc_channel = 8'h16; //XA1 (XADC CHANNEL 6)
+        
+    localparam CH6 = 8'h16; //desired xadc channel for left motor
+    localparam CH7 = 8'h17; //desired xadc channel for right motor
+    
+    wire motor_en_l;
+    wire motor_en_r;
+    wire dir_l;
+    wire dir_r;
+    wire[3:0] ips_motor_mode;
+    
+    assign led[10:7] = ips_motor_mode;
+    //wire[3:0] ips_state;
+    
+    //parameter adc_channel = 8'h16; //XA1 (XADC CHANNEL 6)
+    wire[7:0] active_adc_ch;
+    wire[15:0] xa_data;
+    wire xa_ready;
     
     //0=XA1_P ; 4=XA1_N (XADC CHANNEL 6)
-    CURR_CTRL over_curr(
-        .CURR_CTRL_EN(sw[15]),
-        .direction(sw[5]),
-        .an_pos_in(vauxp6),   .an_neg_in(vauxn6), 
+    ADC_HANDLER adc (
+        .clk(sysClk),
+        .vauxp6(vauxp6),      .vauxn6(vauxn6), 
         .vauxp14(vauxp14),    .vauxn14(vauxn14), 
         .vauxp7(vauxp7),      .vauxn7(vauxn7), 
         .vauxp15(vauxp15),    .vauxn15(vauxn15),
         .vp_in(vp_in),        .vn_in(vn_in), 
-        .channel_out(adc_channel), 
-        .clk(sysClk), 
-        .interrupt(m_interr), 
-        .data(d_data), 
-        .led(led)); 
+        .channel_out(active_adc_ch),
+        .xa_data(xa_data),
+        .ready(xa_ready)
+    );
     
-    DISPLAY curr_display(
-        .data(d_data), 
+        DISPLAY curr_display(
+        .data(d_data_left), 
         .clk(sysClk), 
         .dpEnable(4'b1000), 
         .segPorts(seg), 
         .dpPort(dp), 
-        .anode(an));
+        .anode(an)
+    );
     
-    MOTOR_CTRL m_motor(
+    wire[15:0] dummy_led_left;
+    
+    //#region left_motor
+    CURR_CTRL over_curr_left(
+        .CURR_CTRL_EN(sw[15]),
+        //.direction(sw[5]),
+        .direction(dir_l),
+        .clk(sysClk), 
+        .interrupt(m_interr_left), 
+        .data(d_data_left), 
+        .led(dummy_led_left),
+        .raw_xa_data(xa_data),
+        .xa_channel(active_adc_ch),
+        .m_channel(CH6),
+        .xa_ready(xa_ready)
+    );
+    
+    MOTOR_CTRL m_left(
         .enable(sw[4]), 
-        .direction(sw[5]), 
-        .interrupt(m_interr),
-        .mode(sw[3:0]), 
+        //.direction(sw[5]), 
+        //.enable(motor_en_l), 
+        .direction(dir_l),
+        .interrupt(m_interr_left),
+        //.mode(sw[3:0]),
+        .mode(ips_motor_mode), 
         .clk(sysClk), 
         .ENA(JA[ENA_PMOD]),
         .IN1(JA[IN1_PMOD]),
-        .IN2(JA[IN2_PMOD]));
+        .IN2(JA[IN2_PMOD])
+    );
+    //#endregion
+
+    wire[15:0] dummy_led; //led with no purpose since right motor is disconnected from the basys display
+
+    //#region right_motor
+    CURR_CTRL over_curr_right(
+        .CURR_CTRL_EN(sw[15]),
+        //.direction(sw[7]),
+        .direction(dir_r),
+        .clk(sysClk), 
+        .interrupt(m_interr_right), 
+        .data(d_data_right), 
+        .led(dummy_led),
+        .raw_xa_data(xa_data),
+        .xa_channel(active_adc_ch),
+        .m_channel(CH7),
+        .xa_ready(xa_ready)
+    );
+    
+    MOTOR_CTRL m_right(
+        .enable(sw[6]), 
+        //.direction(sw[7]), 
+        //.enable(motor_en_r), 
+        .direction(dir_r), 
+        .interrupt(m_interr_right),
+        //.mode(sw[3:0]),
+        .mode(ips_motor_mode), 
+        .clk(sysClk), 
+        .ENA(JA[ENB_PMOD]),
+        .IN1(JA[IN3_PMOD]),
+        .IN2(JA[IN4_PMOD])
+    );
+    //#endregion
+    
+    IPS_ARRAY ips_array(
+        .motor_en_l(motor_en_l),
+        .motor_en_r(motor_en_r),
+        .dir_l(dir_l),
+        .dir_r(dir_r),
+        .mode(ips_motor_mode),
+        .m_state(led[15:11]),
+        .clk(sysClk),
+        .ips_front(JB0_IPS),
+        .ips_left(JB1_IPS),
+        .ips_right(JB2_IPS),
+        .ips_mid(JB3_IPS)
+    );
+
 //#endregion
-IR_INPUT IR (
-    .clk(sysClk),
-    .IR_Pin(JB_IR),
-    .LED(JB[1]));
+//    IR_INPUT IR (
+//        .clk(sysClk),
+//        .IR_Pin(JB_IR),
+//        .LED(JB[1]));
+        
+    MB_DELIVER MBD(
+        .clk(sysClk),
+        .S_STATE(sw[14:12]),
+        .Bar1(JC[0]),
+        .Bar2(JC[1]),
+        .Bar3(JC[2])
+    );
 endmodule
