@@ -27,4 +27,54 @@ module MB_DELIVER(
     output Bar2, //PWM output of Barrel 2
     output Bar3 //PWM output of Barrel 3
     ); 
+    
+    //Setting registers for Servo States
+    reg [3:0] S1_State;
+    reg [3:0] S2_State;
+    reg [3:0] S3_State;
+    
+    //Setting open and close for servos as local parameters
+    localparam OPEN = 4'h1;
+    localparam CLOSED = 4'h6;
+    
+    
+    PWM_SRC #(50) S1_PWM(clk, S1_State, Bar1);
+    PWM_SRC #(50) S2_PWM(clk, S2_State, Bar2);    
+    PWM_SRC #(50) S3_PWM(clk, S3_State, Bar3);
+    
+   
+    always @ (*) begin
+        
+        case (S_STATE)                      // Case statement setting open/closed status of each servo for states given by morse code module
+            0 : begin
+                S1_State = CLOSED;
+                S2_State = CLOSED;
+                S3_State = CLOSED;
+            end
+            
+            1 : begin
+                S1_State = OPEN;
+                S2_State = CLOSED;
+                S3_State = CLOSED;
+            end
+            
+            2 : begin
+                S1_State = CLOSED;
+                S2_State = OPEN;
+                S3_State = CLOSED;
+            end
+            
+            4 : begin
+                S1_State = CLOSED;
+                S2_State = CLOSED;
+                S3_State = OPEN;
+            end
+
+            7 : begin
+                S1_State = OPEN;
+                S2_State = OPEN;
+                S3_State = OPEN;
+            end
+        endcase
+    end
 endmodule

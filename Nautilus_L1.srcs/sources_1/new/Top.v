@@ -11,7 +11,7 @@
 // Tool Versions: 
 // Description: 
 // 
-// Dependencies: 
+// Deendencies: 
 // 
 // Revision: 0.1
 // Revision 0.01 - File Created
@@ -44,8 +44,14 @@ module Top (
     //MOTOR CONTROL
     output wire[7:0] JA,
     output wire[6:0] JB,
-    input wire JB_IR
+    input wire JB_IR,
+    
+    //MARBLE DELIVERY PORTS
+    output wire[7:0] JC
+    
     );
+    
+    
     
     //PMOD PINS 5, 6, 11, 12 ARE VCC AND GNDS
     parameter ENA_PMOD = 0; //PIN 1
@@ -90,8 +96,16 @@ module Top (
         .IN1(JA[IN1_PMOD]),
         .IN2(JA[IN2_PMOD]));
 //#endregion
-IR_INPUT IR (
-    .clk(sysClk),
-    .IR_Pin(JB_IR),
-    .LED(JB[1]));
+//    IR_INPUT IR (
+//        .clk(sysClk),
+//        .IR_Pin(JB_IR),
+//        .LED(JB[1]));
+        
+    MB_DELIVER MBD(
+        .clk(sysClk),
+        .S_STATE(sw[14:12]),
+        .Bar1(JC[0]),
+        .Bar2(JC[1]),
+        .Bar3(JC[2])
+    );
 endmodule
