@@ -37,7 +37,8 @@ input enable,
 input clk,
 input IR_Pin,
 output LED,
-output reg overflow
+output reg overflow,
+output [3:0] value
     );
 assign LED = IR_Pin;
 
@@ -137,7 +138,7 @@ always@(posedge clk) begin
                             bit_index = bit_index + 1;
                         end
                         //or was 11 processed? (shouldn't be)
-                        else if (ms_timer >= UNIT_THRESHOLD * CHAR_MS * 2 && ms_timer < UNIT_THRESHOLD * CHAR_MS *2) begin
+                        else if (ms_timer >= UNIT_THRESHOLD * CHAR_MS * 2 && ms_timer < UNIT_THRESHOLD * CHAR_MS * 3) begin
                             //overflow condition
                             if(bit_index + 1 > 59) begin
                                 overflow <= true;
@@ -156,9 +157,9 @@ always@(posedge clk) begin
                             
                             //new_val is 111 or 000 (note, 000 should have been caught as an end character)
                             new_val = (incoming_bit << bit_index) | (incoming_bit << bit_index+1) | (incoming_bit << bit_index+2);
-                            bit_index = bit_index + 2;
+                            bit_index = bit_index + 3;
                         end
-                        //otherwise the bit that was processed was too short
+                        //otherwise the bit that was processed was too short; bit index remains the same and the program will try again with the next bit
                         else begin
                             new_val = 60'b0;
                         end
@@ -174,116 +175,161 @@ end
 
 endmodule
 
-
-module MORSE_DECODER (input enable, input[59:0] bitstream, output ready, output [3:0] out);
-
-
-endmodule
-
 /**
-@Author: Silas Rodriguez
-@Date: 3/1/2023
-@Description: This module is used to receive morse code for 20 WPM, use a 100MHz clock from the BASYS3 board change period if otherwise: char_period = 1.2/WPM 
-              period = char_period * clk_freq
-@Inputs: clk, ir, res -> clock, input from infrared, reset signal
-@Outputs: morse_char -> character received from morse code -> needs to be decoded by another module and then converted to printable format
-@Notes: If the timing appears off, or the character is not decoded correctly, change the period value to the correct value + Nonblocking assignment to blocking assignment (<= to =)
-        Morse code behaves similarly to serial communication, so this module is similar to a serial reciever, this start bit sequence needs to be known to the reciever and the sender + implimented in the code
-        This module is not a complete morse code reciever, it only recieves the morse code and stores it in an array, it does not decode the morse code
-*/
-module morse_receiver (
-    input clk,
-    input ir,
-    input res,
-    output reg [21:0] morse_char //array of 22 bits to store the morse code (0 being longest) -> 5 dash = 15 periods + 4 breaks (1 period ea) + 3 terminate bits (1period ea) = 22 periods
-);
+* MODULE THAT DECODES A 13b-15b MORSE BITSTREAM TO 1, 2, OR 3.
+* IMPLEMENTS ONE OF TWO PROCESSES BASED ON WHETHER INCOMING STREAM PERFECTLY MATCHES ONE OF THE THREE MORSE VALUES
+* IF STREAM DOES NOT PERFECTLY MATCH, ATTEMPTS TO INTERPOLATE BASED ON NUMBER OF DOTS AND DASHES EXPECTED
+* IF STREAM SIZE IS NOT COMPARABLE TO ANY NUMBER OR IF BIT STREAMS ARE NONSENSE, RETURNS FALSE/0
+* 
+**/
+module MORSE_DECODER (input enable, input clk, input[59:0] bitstream, 
+                      output reg ready, output reg fallback, output reg dot_match, output reg dash_match, 
+                      output reg [3:0] out);
+
+    localparam true = 1;
+    localparam false = 0;
+    localparam ONE = 16'b11101110111011101; //10111011101110111; //IN READING ORDER
+    localparam TWO = 14'b111011101110101; //101011101110111; //READING ORDER L->R
+    localparam THREE = 12'b1110111010101; //1010101110111; //READING ORDER L->R
+
+    localparam ONE_SIZE = 10'd16;
+    localparam TWO_SIZE = 10'd14;
+    localparam THREE_SIZE = 10'd12;
+
+    reg[7:0] shift_counter;
+    reg[4:0] one_counter;
+    reg[4:0] dot_counter;
+    reg[4:0] dash_counter;
+
+    reg[59:0] temp_stream;
+
+    reg[4:0] compare_dot;
+    reg[4:0] compare_dash;
+    reg[9:0] compare_separator; //separation value from ones and dashes
+    reg[9:0] stream_end_val; //index of the end stream
     
-    localparam period = 6000000; //period per unit of time -> morse code with 100 MHz clock
-    localparam letter_space = 3'B000;    //important that this number is 000 for spaces
-    localparam word_space = 7'B0000000; //important that this number is 0000000 for spaces
+    reg enable_last;
 
-    reg [22:0] counter;     //counter for the clock
-    reg [21:0] i;            //counter for morse_char array | this could be declared single line
-    reg [21:0] char_buffer;  //buffer for the character
+    always@(posedge clk) begin
 
-    //assume a clock ~ 100 MHz
-    always @(posedge clk) begin
-        if (res) begin
-            counter <= 0;
-            i <=0;
-            morse_char <= 0;
-            char_buffer <= 0;
+        //SET DECODE BACK TO READY WHEN MODULE HAS BEEN ENABLED AND PREVIOUS DECODE HAS COMPLETED
+        if(enable && ready && enable != enable_last) begin
+            ready <= false;
+            temp_stream <= bitstream;
+            one_counter <= 5'b0;
+            dot_counter <= 5'b0;
+            dash_counter <= 5'b0;
+            shift_counter <= 8'b0;
+            
+            enable_last = enable;
+
+                            
+            //SET NUMBER OF DASHES/DOTS TO COMPARE TO FOR FALLBACK DECODING PROCESS
+            if(bitstream[18:16] == 3'b000) begin
+                    compare_dash <= 5'd04;
+                    compare_dot <= 5'd01;
+                    compare_separator <= 10'd01; //EXPECTED INDEX TO SWITCH FROM DOTS TO DASHES
+                    stream_end_val <= ONE_SIZE;
+            end
+            else if(bitstream[17:15] == 3'b000) begin
+                    compare_dash <= 5'd03;
+                    compare_dot <= 5'd02;
+                    compare_separator <= 10'd03;
+                    stream_end_val <= TWO_SIZE;
+            end
+            else if(bitstream[15:13] == 3'b000) begin
+                    compare_dash <= 5'd02;
+                    compare_dot <= 5'd03;
+                    compare_separator <= 10'd05;
+                    stream_end_val <= THREE_SIZE;
+            end
+            //IF STREAM DOES NOT MATCH LENGTH OF ANY KNOWN NUMBER
+            else begin
+                    ready = true;
+                    out = false; //0=false=NOT FOUND
+                    fallback = true;
+            end
         end
-        else begin
-            //increment counter + sample ir waveform
-            counter <= counter + 1;
-            if (counter >= period) begin
-                counter <= 0;   //reset counter
-                //update buffer
-                char_buffer[21-i] <= ir;
-                i <= i + 1;
+
+        if(enable && !ready) begin
+            //TO BEGIN, CHECK AGAINST PERFECT CASES
+            if (bitstream[15:0] == ONE) begin
+                out = 4'd1;
+                ready = true;
+                fallback = false;
+                dot_match = true;
+                dash_match = true;
             end
-            //if char seperator or word separator exists, process char_buffer
-            if (i>=2 && char_buffer[21-i+2:21-i] == letter_space) begin //checks current pointer of i and the previous read ins
-                //process char_buffer to morse_char and reset i and char_buffer to 0
-                morse_char <= char_buffer;
-                i <= 0;
-                char_buffer <= 0;
+            else if (bitstream[14:0] == TWO) begin
+                out = 4'd2;
+                ready = true;
+                fallback = false;
+                dot_match = true;
+                dash_match = true;
             end
-            //if word seperator exists, process char_buffer
-            else if (i>=6 && char_buffer[21-i+6:21-i] == word_space) begin
-                //process char_buffer to morse_char and reset i and char_buffer to 0
-                morse_char <= char_buffer;
-                i <= 0;
-                char_buffer <= 0;
+            else if (bitstream[12:0] == THREE) begin
+                out = 4'd3;
+                ready = true;
+                fallback = false;
+                dot_match = true;
+                dash_match = true;
+            end
+            //IF NO PERFECT CASE WAS FOUND, GUESS AGAINST NUMBER OF DASHES/DOTS RECEIVED (FALLBACK DECODING MODE)
+            else begin
+                fallback = true; //trigger such that upper modules know that fallback was hit
+
+                //BEGIN BY CHECKING FOR A SINGLE ERRONEOUS BIT BASED ON BITSTREAM LENGTH (WILL CHECK IF DASHES ARE CORRECT, THEN DOTS)
+                if(temp_stream[0] == 1 || shift_counter != compare_separator) begin
+                    one_counter = one_counter + 1;
+                end
+                //DECIPHER STREAM OF ONES WHEN 0 IS ENCOUNTERED
+                else begin
+                    //CASE WHEN DASHES APPEAR NORMAL OR BIGGER BETWEEN 3->6 ONES LONG (IF A DASH IS 5 ONES LONG, THEN THE RESULT SHOULD NOT OCCUR BASED ON DASHES)
+                    if(one_counter > 2 && one_counter < 7 && shift_counter > compare_separator) begin
+                        dash_counter = dash_counter + 1;
+                    end
+                    //CASE WHEN AN EXTRA 1 WAS READ EX: (11101110111011111)
+                    else if((one_counter == 1 || one_counter == 2) && shift_counter <= compare_separator) begin
+                        dot_counter = dot_counter + 1;
+                    end
+                    //EDGE CASE WHERE A 0 BETWEEN DOTS 0101 IS A ONE SOMEHOW (0101 -> 0111)
+                    else if(one_counter == 3 && shift_counter < compare_separator) begin
+                        dot_counter = dot_counter + 1;
+                    end
+
+                    one_counter = 0;
+                end
+
+                shift_counter = shift_counter + 1;
+                temp_stream = temp_stream >> 1; //shift temp_stream for next bit handling
+
+                //DECODER REACHED END OF STREAM
+                if(shift_counter > stream_end_val) begin
+
+                    out = false; //overriden if counters found a match
+                    ready <= true;
+
+                    if(dot_counter >= compare_dot) begin
+                        dot_match = true;
+                        out = stream_end_val == ONE_SIZE ? 4'd1 :
+                              stream_end_val == TWO_SIZE ? 4'd2 :
+                              stream_end_val == THREE_SIZE ? 4'd3 :
+                              false; //should never happen
+                    end
+                    else
+                        dot_match = false;
+                    if(dash_counter >= compare_dash) begin
+                        dash_match = true;
+                        out = stream_end_val == ONE_SIZE ? 4'd1 :
+                              stream_end_val == TWO_SIZE ? 4'd2 :
+                              stream_end_val == THREE_SIZE ? 4'd3 :
+                              false; //should never happen
+                    end
+                    else
+                        dash_match = false;
+                end
             end
         end
     end
+
 endmodule
-
-/**
-@Author: Silas Rodriguez
-@Date: 3/3/2023
-@Description: This module is used to decode morse code from the morse_reciever module
-@Inputs: clk, morse_char -> clock, morse code character received from morse_reciever module
-@Outputs: morse_char_decoded -> decoded character from morse code to be used by other 7 segment display modules or displayed in some other ways (customizable via bits)
-@Notes: The inputs are mapped in binary for how the numbers are expected to be displayed at the receiver (draw waveforms to see how the bits are mapped)
-*/
-module morse_decoder (
-    input clk,
-    input [21:0] morse_char,
-    output reg [7:0] morse_char_decoded
-);
-    always @(posedge clk) begin
-        case(morse_char)
-        //1
-        22'b0000000000000000000000: morse_char_decoded = 8'b00000001; //1
-        //2
-        22'b0000000000000000000001: morse_char_decoded = 8'b00000010; //2
-        //3
-        22'b0000000000000000000011: morse_char_decoded = 8'b00000100; //3
-        //4
-        22'b0000000000000000000111: morse_char_decoded = 8'b00001000; //4
-        //5
-        22'b0000000000000000001111: morse_char_decoded = 8'b00010000; //5
-        //6
-        22'b0000000000000000011111: morse_char_decoded = 8'b00100000; //6
-        //7
-        22'b0000000000000000111111: morse_char_decoded = 8'b01000000; //7
-        //8
-        22'b0000000000000001111111: morse_char_decoded = 8'b10000000; //8
-        //9
-        22'b0000000000000011111111: morse_char_decoded = 8'b00000011; //9
-        //0
-        22'b0000000000000111111111: morse_char_decoded = 8'b00000110; //0
-        //assuming a word space was processed if none of the character spaces were processed
-        default:
-            morse_char_decoded = 8'b00000000;   //output a space? something else?
-        endcase
-    end
-endmodule
-
-/*
-    Insert the seven seg / printing module here
-*/
-

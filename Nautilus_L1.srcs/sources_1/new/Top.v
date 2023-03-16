@@ -45,12 +45,16 @@ module Top (
     output wire[7:0] JA,
     
     //IR
-    output wire[2:0] JB,
+    output wire JB_7,
     input wire JB0_IPS,
     input wire JB1_IPS,
     input wire JB2_IPS,
     input wire JB3_IPS,
     input wire JB_IR,
+    
+    //US SENSOR
+    output wire JB_TRIGGER,
+    input wire JB_ECHO,
     
     //MARBLE DELIVERY PORTS
     output wire[7:0] JC
@@ -105,9 +109,22 @@ module Top (
         .xa_data(xa_data),
         .ready(xa_ready)
     );
+          
+        //WIRE AND REG FOR DISPLAYING ULTRASONIC DATA 
+        wire[29:0] us_distance;
+        wire[19:0] us_data;
+        assign us_data[19] = 1;
+        assign us_data[18:15] = us_distance[15:12];
+        assign us_data[14] = 1;
+        assign us_data[13:10] = us_distance[11:8];
+        assign us_data[9] = 1;
+        assign us_data[8:5] = us_distance[7:4];
+        assign us_data[4] = 1;  
+        assign us_data[3:0] = us_distance[3:0];
     
         DISPLAY curr_display(
-        .data(d_data_left), 
+        //.data(d_data_left), 
+        .data(us_data),
         .clk(sysClk), 
         .dpEnable(4'b1000), 
         .segPorts(seg), 
@@ -191,6 +208,14 @@ module Top (
         .ips_left(JB1_IPS),
         .ips_right(JB2_IPS),
         .ips_mid(JB3_IPS)
+    );
+    
+    US_SENSOR us_sens(
+        .clk(sysClk),
+        .echo_pin(JB_ECHO),
+        .trigger(JB_TRIGGER),
+        .detected(led[0]),
+        .distance(us_distance)
     );
 
 //#endregion
