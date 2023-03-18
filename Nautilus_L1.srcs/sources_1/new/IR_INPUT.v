@@ -44,8 +44,8 @@ assign LED = IR_Pin;
 
 localparam true = 1;
 localparam false = 0;
-localparam START_CHAR_MS = 180;
-localparam UNIT_THRESHOLD = 0.75; //MIN AMOUNT OF TIME A UNIT WAS PROCESSED FOR IT TO BE CONSIDERED ACCURATE
+localparam CHAR_MIN_MS = 45;
+//dlocalparam UNIT_THRESHOLD = 0.75; //MIN AMOUNT OF TIME A UNIT WAS PROCESSED FOR IT TO BE CONSIDERED ACCURATE
 localparam CHAR_MS = 60; //60 MS IS EXPECTED PER CHARACTER
 
 reg start;
@@ -121,13 +121,13 @@ always@(posedge clk) begin
                 end
                 else if(found_start_char) begin
                     //the case that the start/end character was found
-                    if(incoming_bit == 0 && ms_timer > START_CHAR_MS * UNIT_THRESHOLD) begin
+                    if(incoming_bit == 0 && ms_timer > CHAR_MIN_MS*3) begin
                         reset <= true;
                         process_stream <= bitstream;
                     end
                     else begin
                         //was 1 processed?
-                        if(ms_timer >= UNIT_THRESHOLD * CHAR_MS && ms_timer < UNIT_THRESHOLD* CHAR_MS *2) begin
+                        if(ms_timer >= CHAR_MIN_MS && ms_timer < CHAR_MIN_MS *2) begin
                             //overflow condition
                             if(bit_index > 59) begin
                                 overflow <= true;
@@ -138,7 +138,7 @@ always@(posedge clk) begin
                             bit_index = bit_index + 1;
                         end
                         //or was 11 processed? (shouldn't be)
-                        else if (ms_timer >= UNIT_THRESHOLD * CHAR_MS * 2 && ms_timer < UNIT_THRESHOLD * CHAR_MS * 3) begin
+                        else if (ms_timer >= CHAR_MIN_MS * 2 && ms_timer < CHAR_MIN_MS * 3) begin
                             //overflow condition
                             if(bit_index + 1 > 59) begin
                                 overflow <= true;
@@ -149,7 +149,7 @@ always@(posedge clk) begin
                             bit_index = bit_index + 2;
                         end
                         //or was 111 processed? (dash case)
-                        else if(ms_timer >= UNIT_THRESHOLD * CHAR_MS * 3) begin
+                        else if(ms_timer >= CHAR_MIN_MS * 3) begin
                             //overflow condition
                             if(bit_index + 2 > 59) begin
                                 overflow <= true;

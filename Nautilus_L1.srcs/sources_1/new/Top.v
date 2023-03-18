@@ -21,6 +21,7 @@
 
 
 module Top (
+
     //DISPLAY
     input wire[15:0] sw,
     output wire[15:0] led,
@@ -43,21 +44,27 @@ module Top (
     
     //MOTOR CONTROL
     output wire[7:0] JA,
-    
+
+    //IPS_SENSOR
+    input wire JC0_IPS,
+    input wire JC1_IPS,
+    input wire JC2_IPS,
+    input wire JC3_IPS,
+       
     //IR
-    output wire JB_7,
-    input wire JB0_IPS,
-    input wire JB1_IPS,
-    input wire JB2_IPS,
-    input wire JB3_IPS,
-    input wire JB_IR,
+    input wire JB1_IR,
     
-    //US SENSOR
-    output wire JB_TRIGGER,
-    input wire JB_ECHO,
+    //US SENSOR FRONT
+    output wire JB8_TRIGGER,
+    input wire JB7_ECHO,
+    //US SENSOR BACK
+    output wire JB10_TRIGGER,
+    input wire JB9_ECHO,
     
     //MARBLE DELIVERY PORTS
-    output wire[7:0] JC
+    output wire JC7,
+    output wire JC8,
+    output wire JC9
     
     );
     
@@ -122,7 +129,7 @@ module Top (
         assign us_data[4] = 1;  
         assign us_data[3:0] = us_distance[3:0];
     
-        DISPLAY curr_display(
+        DISPLAY display(
         //.data(d_data_left), 
         .data(us_data),
         .clk(sysClk), 
@@ -210,25 +217,33 @@ module Top (
         .ips_mid(JB3_IPS)
     );
     
-    US_SENSOR us_sens(
+    US_SENSOR us_sens_left(
         .clk(sysClk),
-        .echo_pin(JB_ECHO),
-        .trigger(JB_TRIGGER),
+        .echo_pin(JB7_ECHO),
+        .trigger(JB8_TRIGGER),
         .detected(led[0]),
         .distance(us_distance)
     );
 
+    US_SENSOR us_sens_right(
+        .clk(sysClk),
+        .echo_pin(JB9_ECHO),
+        .trigger(JB10_TRIGGER),
+        .detected(led[1])
+        //.distance(us_distance)
+    );
+
 //#endregion
-//    IR_INPUT IR (
-//        .clk(sysClk),
-//        .IR_Pin(JB_IR),
-//        .LED(JB[1]));
+    IR_INPUT IR (
+       .clk(sysClk),
+        .IR_Pin(JB1_IR),
+        .LED(led[2]));
         
     MB_DELIVER MBD(
         .clk(sysClk),
         .S_STATE(sw[14:12]),
-        .Bar1(JC[0]),
-        .Bar2(JC[1]),
-        .Bar3(JC[2])
+        .Barr1(JC7),
+        .Barr2(JC8),
+        .Barr3(JC9)
     );
 endmodule

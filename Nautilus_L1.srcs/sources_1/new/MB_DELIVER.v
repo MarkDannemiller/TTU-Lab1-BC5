@@ -23,9 +23,9 @@
 module MB_DELIVER(
     input wire[2:0] S_STATE, // Set state of all 3 servos
     input clk,  //Clock for PWM
-    output Bar1, //PWM output of Barrel 1
-    output Bar2, //PWM output of Barrel 2
-    output Bar3 //PWM output of Barrel 3
+    output Barr1, //PWM output of Barrel 1
+    output Barr2, //PWM output of Barrel 2
+    output Barr3 //PWM output of Barrel 3
     ); 
     
     //Setting registers for Servo States
@@ -38,9 +38,9 @@ module MB_DELIVER(
     localparam CLOSED = 4'h6;
     
     
-    PWM_SRC #(50) S1_PWM(clk, S1_State, Bar1);
-    PWM_SRC #(50) S2_PWM(clk, S2_State, Bar2);    
-    PWM_SRC #(50) S3_PWM(clk, S3_State, Bar3);
+    PWM_SRC #(50) S1_PWM(clk, S1_State, Barr1);
+    PWM_SRC #(50) S2_PWM(clk, S2_State, Barr2);    
+    PWM_SRC #(50) S3_PWM(clk, S3_State, Barr3);
     
    
     always @ (*) begin
