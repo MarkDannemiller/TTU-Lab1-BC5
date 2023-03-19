@@ -188,13 +188,13 @@ module MORSE_DECODER (input enable, input clk, input[59:0] bitstream,
 
     localparam true = 1;
     localparam false = 0;
-    localparam ONE = 16'b11101110111011101; //10111011101110111; //IN READING ORDER
-    localparam TWO = 14'b111011101110101; //101011101110111; //READING ORDER L->R
-    localparam THREE = 12'b1110111010101; //1010101110111; //READING ORDER L->R
+    localparam ONE = 17'b11101110111011101; //10111011101110111; //IN READING ORDER
+    localparam TWO = 15'b111011101110101; //101011101110111; //READING ORDER L->R
+    localparam THREE = 13'b1110111010101; //1010101110111; //READING ORDER L->R
 
-    localparam ONE_SIZE = 10'd16;
-    localparam TWO_SIZE = 10'd14;
-    localparam THREE_SIZE = 10'd12;
+    localparam ONE_SIZE = 10'd17;
+    localparam TWO_SIZE = 10'd15;
+    localparam THREE_SIZE = 10'd13;
 
     reg[7:0] shift_counter;
     reg[4:0] one_counter;
