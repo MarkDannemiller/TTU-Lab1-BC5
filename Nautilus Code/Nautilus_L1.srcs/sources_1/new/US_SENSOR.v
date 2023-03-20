@@ -33,7 +33,7 @@ module US_SENSOR(
     localparam true = 1;
     localparam false = 0;
     
-    localparam target_distance = 16; //cm
+    localparam target_distance = 16; //maximum detection distance in [cm]
     reg [29:0] timer = 0; //measured in microseconds, max of 23,200*2^15
     reg timer_enable=0;
     reg [6:0] counter =0;
@@ -47,9 +47,7 @@ module US_SENSOR(
     assign trigger = trig_reg;
     
     //2300 IS TIME BETWEEN TRIGGER AND ECHO RECEPTION
-    assign detected = (final_timer_val<(target_distance*58)) ? 1 : 0; //converts target distance from cm to time
-    //assign detected = (final_timer_val<=(7));
-    
+    assign detected = (final_timer_val<(target_distance*58)) ? 1 : 0; //converts target distance from cm to time    
     reg rising_edge = false;
     
     //increment timer if we are receiving echo OR increment trigger timer if we are sending pulse
