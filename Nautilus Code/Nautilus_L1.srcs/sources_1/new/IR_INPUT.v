@@ -60,8 +60,21 @@ reg[59:0] new_val;
 reg[59:0] process_stream; //stream that will only update when full stream is processed and sent to decoder
 //reg[471:0] timestream;
 reg decode_en;
+wire decode_ready;
+wire fallback;
 
 reg[5:0] bit_index;
+
+MORSE_DECODER decoder (
+    .input(process_stream),
+    .enable(decode_en),
+    .clk(clk),
+    .bitstream(process_stream),
+    .ready(decode_ready),
+    .fallback(fallback),
+    .dot_match(),
+    .out(value)
+;)
 
 //255ms max time per bit accounts for a maximum of 4 units (0.06s)*4=240ms observed which accounts for dashes and start/end strings
 //reg[471:0] timestream; //time in ms each on/off bit was observed (60 bit slots * 240ms each)
@@ -83,6 +96,9 @@ initial begin
 end
 
 always@(posedge clk) begin
+
+    if(decode_ready && decode_en)
+        decode_en = false;
 
     //disable module and reset registers
     if(!enable) begin
@@ -124,6 +140,7 @@ always@(posedge clk) begin
                     if(incoming_bit == 0 && ms_timer > CHAR_MIN_MS*3) begin
                         reset <= true;
                         process_stream <= bitstream;
+                        decode_en = true;
                     end
                     else begin
                         //was 1 processed?
