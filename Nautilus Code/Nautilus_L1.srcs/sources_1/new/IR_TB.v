@@ -84,7 +84,7 @@ IR_in = 1;
 IR_in = 0;//0000000
 #(420 * MS_TO_UNIT);
 
-for(integer i = 0; i<15; i=i+1)begin
+for(i = 0; i<15; i=i+1)begin
     IR_in=value_TWO[0];
     #(60 * MS_TO_UNIT);
     value_TWO = value_TWO >> 1;
@@ -182,7 +182,7 @@ IR_in = 1;
 IR_in = 0;//0000000
 #(420 * MS_TO_UNIT);
 
-for(integer i = 0; i<13; i=i+1)begin
+for(i = 0; i<13; i=i+1)begin
     IR_in=value_THREE[0];
     #(60 * MS_TO_UNIT);
     value_THREE = value_THREE >> 1;
@@ -201,7 +201,7 @@ IR_in = 1;
 IR_in = 0;//0000000
 #(420 * MS_TO_UNIT);
 
-for(integer i = 0; i<11; i=i+1)begin
+for(i = 0; i<11; i=i+1)begin
     IR_in=value_SMALL[0];
     #(60 * MS_TO_UNIT);
     value_SMALL = value_SMALL >> 1;
@@ -220,7 +220,7 @@ IR_in = 1;
 IR_in = 0;//0000000
 #(420 * MS_TO_UNIT);
 
-for(integer i = 0; i<19; i=i+1)begin
+for(i = 0; i<19; i=i+1)begin
     IR_in=value_LARGE[0];
     #(60 * MS_TO_UNIT);
     value_LARGE = value_LARGE >> 1;

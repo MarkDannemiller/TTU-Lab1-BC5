@@ -99,6 +99,9 @@ reg force_update; //to force update at end of code process for immediate next st
 
 always@(posedge clk) begin
 
+    if(decode_ready && decode_en)
+        decode_en = false;
+
     //disable module and reset registers
     if(!enable) begin
         bitstream = 60'b0;
