@@ -45,13 +45,16 @@ module IPS_ARRAY(
     
     parameter FORWARD_SPEED = 4'd15; //specification of 4 bit speed mode for forward
     parameter REVERSE_SPEED = 4'd10; //specification of 4 bit speed mode for reverse
-    parameter TURN_SPEED = 4'd10; //specification of 4 bit turning speed
+    parameter TURN_SPEED = 4'd6; //specification of 4 bit turning speed
+
+    parameter FORWARD_SLOW_SPEED = 4'd5;
+    parameter TURN_SLOW_SPEED = 4'd5;
     
     //The states of the IPS navigation system
     localparam FORWARD = 1;
     localparam REVERSE = 2;
     localparam ROTATE = 3;
-    localparam FORWARD_SPECIAL = 4;   
+    localparam FORWARD_SPECIAL = 4;
     
     reg[4:0] state = FORWARD; //start forward
     assign m_state = state;
@@ -68,7 +71,7 @@ module IPS_ARRAY(
     //assign outputs to temp registers
     assign motor_en_l = left_enable;
     assign motor_en_r = right_enable;
-    assign dir_l = dir_left;
+    assign dir_l = !dir_left;
     assign dir_r = dir_right;
     assign mode = speed;
     
@@ -102,29 +105,55 @@ module IPS_ARRAY(
         if(ms_counter > 100000) begin
             rotate_timer = rotate_timer + 1;
         end    
+        
+        //KEEPS SENSORS OPPOSITE SO THAT IF FRONT SENSOR LEAVES TAPE AND REENTERS, SENSOR VALUE WILL BE ACCEPTED
+        //if(!front) begin
+          //  current_ips_right = !current_ips_right;
+          //  current_ips_left = !current_ips_left;
+        //end
     
         //BEHAVIOR SHALL CHANGE BASED ON THE STATE OF THE ROVER. SEE NAVIGATION FLOWCHART FOR MORE INFORMATION
         case (state)
         FORWARD: begin
-            speed = FORWARD_SPEED;
             dir_left = 1;
             dir_right = 1;
             
             //just added a check to make sure it only updates on rising edge
-            if(front && right && (right != current_ips_right)) begin
-                rotate_dir = !right;
+            //also, if front sensor is off and both sensors were just on but one just left then the sensor that is still on takes priority
+            if((right && right != current_ips_right))/* || 
+               (!front && !current_ips_right && !current_ips_left && !left))*/ begin //VALUES OF CURRENT_IPS ARE INVERTED WHEN FRONT IS OFF TAPE TO PRESERVE FUNCTIONALITY WHEN FRONT HITS TAPE AGAIN
+                rotate_dir = 1;
             end
-            else if(front && left && (left != current_ips_left)) begin
-                rotate_dir = left;
+            else if(left && (left != current_ips_left)) /*|| 
+                    (!front && !current_ips_left && !current_ips_right && !right))*/ begin
+                rotate_dir = 0;
+            end
+            else
+                speed = FORWARD_SPEED;
+            
+            //slow down at edge
+            if(!front && mid) begin
+                speed = FORWARD_SLOW_SPEED;
             end
             
             //IF FRONT AND MIDDLE SENSOR RAN OFF TRACK, REVERSE UNTIL EDGE OF TAPE IS FOUND BY MID
             if(!front && !mid) begin
-                state = REVERSE;
+                if(!right && !left) begin
+                    state = REVERSE;
+                end
+                else if(right) begin
+                    rotate_dir = 1;
+                    state = ROTATE;
+                end
+                else if(left) begin
+                    rotate_dir = 0;
+                    state = ROTATE;
+                end
             end
             //IF MIDDLE SENSOR RUNS OFF TRACK BUT FRONT IS ON, THEN CONTINUE FORWARD UNTIL MIDDLE HAS REACHED EDGE
             if(front && !mid) begin
                 state = FORWARD_SPECIAL;
+                speed = FORWARD_SPEED;
             end
         end
         
@@ -141,7 +170,6 @@ module IPS_ARRAY(
         end
         
         ROTATE: begin
-            speed = TURN_SPEED;
             dir_left = !rotate_dir; //positive rotation is counter clockwise
             dir_right = rotate_dir;
             ms_counter = ms_counter + 1;
@@ -150,6 +178,13 @@ module IPS_ARRAY(
             if(ms_counter > 100000) begin
                rotate_timer = rotate_timer + 1; 
             end
+            
+            //slow down when sensor picks up edge
+            if(left || right) begin
+                speed = TURN_SLOW_SPEED;
+            end
+            else
+                speed = TURN_SPEED;
             
             //ROTATE UNTIL FRONT IPS SENSOR HAS FOUND TAPE
             //180/turn_speed = time to rotate 180 degrees
@@ -165,11 +200,30 @@ module IPS_ARRAY(
         //SPECIAL MODE WHEN MIDDLE SENSOR IS OFF BUT FRONT SENSOR IS ON.  MOVE FORWARD UNTIL MIDDLE SENSOR HAS FOUND TAPE
         FORWARD_SPECIAL: begin
             speed = FORWARD_SPEED;
-            if(!front && right != current_ips_right) begin
-                rotate_dir = !right;
+            
+            //just added a check to make sure it only updates on rising edge
+            //also, if front sensor is off and both sensors were just on but one just left then the sensor that is still on takes priority
+            if((right && right != current_ips_right))/* || 
+               (!front && !current_ips_right && !current_ips_left && !left))*/ begin //VALUES OF CURRENT_IPS ARE INVERTED WHEN FRONT IS OFF TAPE TO PRESERVE FUNCTIONALITY WHEN FRONT HITS TAPE AGAIN
+                rotate_dir = 1;
             end
-            else if(front && left != current_ips_left) begin
-                rotate_dir = !left;
+            else if(left && (left != current_ips_left)) /*|| 
+                    (!front && !current_ips_left && !current_ips_right && !right))*/ begin
+                rotate_dir = 0;
+            end
+            
+            //IF BOTH CENTER SENSORS ARE OFF BUT A DIRECTION SENSOR IS FOUND, ROTATE THAT DIRECTION!
+            //NOTICE THAT THIS CODE IS SIMILAR TO FORWARD MODE BUT EXCLUDES THE REVERSE CASE
+            if(!front && !mid) begin
+                //ROVER IS CENTERED IF BOTH ARE ON
+                if(right && !left) begin
+                    rotate_dir = 1;
+                    state = ROTATE;
+                end
+                else if(left && !right) begin
+                    rotate_dir = 0;
+                    state = ROTATE;
+                end
             end
             
             if(mid) begin
@@ -177,7 +231,6 @@ module IPS_ARRAY(
             end
         end
         endcase
-        
         
         current_ips_right = right;
         current_ips_left = left;

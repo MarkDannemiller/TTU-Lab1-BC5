@@ -20,9 +20,10 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module DISPLAY(
+module DATA_HANDLER (
     input [19:0] data,      //5 bits per display, MSB enable with 4 bits for hex code
     input clk,
+    input [15:0] battery_data,
     //input [3:0] display_en,
     input [3:0] dpEnable,   //decimal point enable for each display
     output [6:0] segPorts,   //ports corresponding to each segment (all displays share these ports)

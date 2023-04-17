@@ -46,29 +46,30 @@ module Top (
     output wire[7:0] JA,
 
     //IPS_SENSOR
-    input wire JC0_IPS,
-    input wire JC1_IPS,
-    input wire JC2_IPS,
-    input wire JC3_IPS,
-       
-    //IR
-    input wire JB1_IR,
+    input wire JB0_IPS, //JB1 FRONT
+    input wire JB1_IPS, //JB2 LEFT
+    input wire JB2_IPS, //JB3 RIGHT 
+    input wire JB3_IPS, //JB4 MID
     
+    
+    //PAYLOAD DESIGNATION UNIT
+    //IR
+    input wire JC1_IR,
     //US SENSOR FRONT
-    output wire JB8_TRIGGER,
-    input wire JB7_ECHO,
+    output wire JC8_TRIGGER,
+    input wire JC7_ECHO,
     //US SENSOR BACK
-    output wire JB10_TRIGGER,
-    input wire JB9_ECHO,
+    output wire JC10_TRIGGER,
+    input wire JC9_ECHO,
+    input wire btnC, //temp continue for PDU to be replaced by IR decoding
     
     //MARBLE DELIVERY PORTS
-    output wire JC7,
-    output wire JC8,
-    output wire JC9
+    output wire JB7,
+    output wire JB8,
+    output wire JB9
     
     );
-    
-    
+   
     
     //LEFT MOTOR: PMOD PINS 5, 6, 11, 12 ARE VCC AND GNDS
     parameter ENA_PMOD = 0; //PIN 1
@@ -87,17 +88,40 @@ module Top (
     wire[19:0] d_data_right;
     
         
+    //https://digilent.com/reference/basys3/xadcdemo
     localparam CH6 = 8'h16; //desired xadc channel for left motor
-    localparam CH7 = 8'h17; //desired xadc channel for right motor
+    localparam CH14 = 8'h1E; //desired xadc channel for right motor
+    localparam CH7 = 8'h17; 
     
-    wire motor_en_l;
-    wire motor_en_r;
-    wire dir_l;
-    wire dir_r;
-    wire[3:0] ips_motor_mode;
+    //IPS MOTOR CONTROL PINS
+    wire IPS_motor_en_l;
+    wire IPS_motor_en_r;
+    wire IPS_dir_l;
+    wire IPS_dir_r;
+    wire[3:0] IPS_motor_mode;
+         
+    reg motor_en_l;
+    reg motor_en_r;
+    reg dir_l;
+    reg dir_r;
+    reg[3:0] motor_mode;
     
-    assign led[10:7] = ips_motor_mode;
+//#REGION PDU           
+    wire[4:0] PDU_STATE;
+    wire[3:0] PDU_MARBLE_VAL;
+    
+    //these values should match BOX_ID
+    localparam DRIVE = 0;
+    localparam FRONT_DETECT = 1;
+    localparam BACK_DETECT = 2;
+    localparam SCANNING = 3;
+    localparam DISPENSE = 4;
+    
+    localparam BOX_DETECT_SPEED = 4'd4; //go slow when finding box
+    
+    assign led[10:7] = motor_mode;
     //wire[3:0] ips_state;
+//#ENDREGION
     
     //parameter adc_channel = 8'h16; //XA1 (XADC CHANNEL 6)
     wire[7:0] active_adc_ch;
@@ -128,18 +152,19 @@ module Top (
         assign us_data[8:5] = us_distance[7:4];
         assign us_data[4] = 1;  
         assign us_data[3:0] = us_distance[3:0];
+        
+        wire[19:0] IR_display_data;
     
-        DISPLAY display(
+        DATA_HANDLER data_handler (
         //.data(d_data_left), 
-        .data(us_data),
+        //.data(us_data),
+        .data(IR_display_data),
         .clk(sysClk), 
         .dpEnable(4'b1000), 
         .segPorts(seg), 
         .dpPort(dp), 
         .anode(an)
     );
-    
-    wire[15:0] dummy_led_left;
     
     //#region left_motor
     CURR_CTRL over_curr_left(
@@ -149,7 +174,7 @@ module Top (
         .clk(sysClk), 
         .interrupt(m_interr_left), 
         .data(d_data_left), 
-        .led(dummy_led_left),
+        //.led(dummy_led_left),
         .raw_xa_data(xa_data),
         .xa_channel(active_adc_ch),
         .m_channel(CH6),
@@ -157,22 +182,21 @@ module Top (
     );
     
     MOTOR_CTRL m_left(
-        .enable(sw[4]), 
+        .enable(sw[0]), 
         //.direction(sw[5]), 
         //.enable(motor_en_l), 
         .direction(dir_l),
         .interrupt(m_interr_left),
         //.mode(sw[3:0]),
-        .mode(ips_motor_mode), 
+        .mode(motor_mode), 
         .clk(sysClk), 
         .ENA(JA[ENA_PMOD]),
         .IN1(JA[IN1_PMOD]),
         .IN2(JA[IN2_PMOD])
     );
     //#endregion
-
-    wire[15:0] dummy_led; //led with no purpose since right motor is disconnected from the basys display
-
+    
+    
     //#region right_motor
     CURR_CTRL over_curr_right(
         .CURR_CTRL_EN(sw[15]),
@@ -181,21 +205,21 @@ module Top (
         .clk(sysClk), 
         .interrupt(m_interr_right), 
         .data(d_data_right), 
-        .led(dummy_led),
+        //.led(dummy_led),
         .raw_xa_data(xa_data),
         .xa_channel(active_adc_ch),
-        .m_channel(CH7),
+        .m_channel(CH14),
         .xa_ready(xa_ready)
     );
     
     MOTOR_CTRL m_right(
-        .enable(sw[6]), 
+        .enable(sw[0]), 
         //.direction(sw[7]), 
         //.enable(motor_en_r), 
         .direction(dir_r), 
         .interrupt(m_interr_right),
         //.mode(sw[3:0]),
-        .mode(ips_motor_mode), 
+        .mode(motor_mode), 
         .clk(sysClk), 
         .ENA(JA[ENB_PMOD]),
         .IN1(JA[IN3_PMOD]),
@@ -204,11 +228,11 @@ module Top (
     //#endregion
     
     IPS_ARRAY ips_array(
-        .motor_en_l(motor_en_l),
-        .motor_en_r(motor_en_r),
-        .dir_l(dir_l),
-        .dir_r(dir_r),
-        .mode(ips_motor_mode),
+        .motor_en_l(IPS_motor_en_l),
+        .motor_en_r(IPS_motor_en_r),
+        .dir_l(IPS_dir_l),
+        .dir_r(IPS_dir_r),
+        .mode(IPS_motor_mode),
         .m_state(led[15:11]),
         .clk(sysClk),
         .ips_front(JB0_IPS),
@@ -216,34 +240,72 @@ module Top (
         .ips_right(JB2_IPS),
         .ips_mid(JB3_IPS)
     );
+        
+    BOX_ID PDU (
+        .sysClk(sysClk),
+        .echo_back(JC7_ECHO),
+        .trigger_back(JC8_TRIGGER),
+        .echo_front(JC9_ECHO),
+        .trigger_front(JC10_TRIGGER),
+        .IR_in(JC1_IR),
+        .continue(btnC), //dummy value
+        .us_distance(us_distance),
+        .front_detected(led[1]),
+        .back_detected(led[0]),
+        .IR_display_data(IR_display_data),
+        .ir_detect(led[2]),
+        .marble_val(PDU_MARBLE_VAL),
+        .STATE(PDU_STATE)
+    );
     
-    US_SENSOR us_sens_left(
-        .clk(sysClk),
-        .echo_pin(JB7_ECHO),
-        .trigger(JB8_TRIGGER),
-        .detected(led[0]),
-        .distance(us_distance)
-    );
-
-    US_SENSOR us_sens_right(
-        .clk(sysClk),
-        .echo_pin(JB9_ECHO),
-        .trigger(JB10_TRIGGER),
-        .detected(led[1])
-        //.distance(us_distance)
-    );
-
-//#endregion
-    IR_INPUT IR (
-       .clk(sysClk),
-        .IR_Pin(JB1_IR),
-        .LED(led[2]));
+    assign led[6:3] = PDU_STATE; //will not keep track of dispense as it will display as 
         
     MB_DELIVER MBD(
         .clk(sysClk),
-        .S_STATE(sw[14:12]),
-        .Barr1(JC7),
-        .Barr2(JC8),
-        .Barr3(JC9)
+        //.S_STATE(sw[14:12]),
+        .S_STATE(PDU_MARBLE_VAL),
+        .Barr1(JB7),
+        .Barr2(JB8),
+        .Barr3(JB9)
     );
+
+    
+    //HANDLE ROVER NAVIGATION BASED ON IPS RIGH AND PAYLOAD DESIGNATION UNIT
+    always@(posedge sysClk) begin
+        
+        case(PDU_STATE)
+            DRIVE: begin
+                motor_mode = IPS_motor_mode;
+                motor_en_l = IPS_motor_en_l;
+                motor_en_r = IPS_motor_en_r;
+                dir_l = !IPS_dir_l;
+                dir_r = !IPS_dir_r;
+            end
+            FRONT_DETECT: begin
+                motor_mode = BOX_DETECT_SPEED;
+                motor_en_l = 1;
+                motor_en_r = 1;
+                //MOVE FORWARDS
+                dir_l = 1;
+                dir_r = 0;
+            end
+            BACK_DETECT: begin
+            motor_mode = BOX_DETECT_SPEED;
+                motor_en_l = 1;
+                motor_en_r = 1;
+                //MOVE BACKWARDS
+                dir_l = 0;
+                dir_r = 1;
+            end
+            //OTHERWISE SCANNING OR DISPENSE OR DISABLE IF IMPLEMENTED
+            default: begin
+                motor_mode = 1'd0;
+                motor_en_l = 0;
+                motor_en_r = 0;
+                //STATIONARY
+                dir_l = 1;
+                dir_r = 0;
+            end
+        endcase
+    end
 endmodule
