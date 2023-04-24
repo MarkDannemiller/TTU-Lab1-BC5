@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module US_SENSOR #(parameter SAMPLE_MS = 10, parameter SAMPLE_PERCENT = 90)(
+module US_SENSOR #(parameter SAMPLE_MS = 100, parameter SAMPLE_PERCENT = 90)(
     input clk, //input clock for reading pulse
     input echo_pin, //INVERTED LOGIC DUE TO PULLUP RESISTOR
     input module_enable,
@@ -33,9 +33,8 @@ module US_SENSOR #(parameter SAMPLE_MS = 10, parameter SAMPLE_PERCENT = 90)(
     
     localparam true = 1;
     localparam false = 0;
-    localparam CLOCK_TO_MS = 100000; //100,000 CLOCK CYCLES IN 1 MS
+    localparam CLOCK_TO_MS = 100_000; //100,000 CLOCK CYCLES IN 1 MS
     
-    localparam target_distance = 13; //maximum detection distance in [cm]
     reg [29:0] timer = 0; //measured in microseconds, max of 23,200*2^15
     reg timer_enable=0;
     reg [6:0] counter =0;
@@ -48,6 +47,7 @@ module US_SENSOR #(parameter SAMPLE_MS = 10, parameter SAMPLE_PERCENT = 90)(
     reg trig_reg = 0;
     assign trigger = trig_reg;
     
+    localparam target_distance = 11; //maximum detection distance in [cm]
     //2300 IS TIME BETWEEN TRIGGER AND ECHO RECEPTION
     assign detected = (final_timer_val<(target_distance*58)) ? 1 : 0; //converts target distance from cm to time    
     reg rising_edge = false;

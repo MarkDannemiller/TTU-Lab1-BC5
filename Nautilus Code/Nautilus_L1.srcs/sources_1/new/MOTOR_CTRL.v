@@ -39,8 +39,9 @@ module MOTOR_CTRL(
     
     PWM_SRC src(clk, mode, pwm); //module to convert clock signal into pwm value
     
-    assign ENA = pwm & enable & ~interrupt; //outputs pwm signal if module is enabled
-    assign IN1 = direction;
-    assign IN2 = ~direction;
+    //CHANGED THIS BIT TO BRAKE ON 0
+    assign ENA = (pwm || mode==0) & enable & ~interrupt; //outputs pwm signal if module is enabled
+    assign IN1 = direction || mode==0;
+    assign IN2 = ~direction || mode==0;
     
 endmodule

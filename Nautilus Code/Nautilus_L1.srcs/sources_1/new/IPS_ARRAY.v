@@ -45,10 +45,10 @@ module IPS_ARRAY(
     
     parameter FORWARD_SPEED = 4'd15; //specification of 4 bit speed mode for forward
     parameter REVERSE_SPEED = 4'd10; //specification of 4 bit speed mode for reverse
-    parameter TURN_SPEED = 4'd6; //specification of 4 bit turning speed
+    parameter TURN_SPEED = 4'd10; //specification of 4 bit turning speed
 
     parameter FORWARD_SLOW_SPEED = 4'd5;
-    parameter TURN_SLOW_SPEED = 4'd5;
+    parameter TURN_SLOW_SPEED = 4'd6;
     
     //The states of the IPS navigation system
     localparam FORWARD = 1;
@@ -170,8 +170,8 @@ module IPS_ARRAY(
         end
         
         ROTATE: begin
-            dir_left = !rotate_dir; //positive rotation is counter clockwise
-            dir_right = rotate_dir;
+            dir_left = rotate_dir; //positive rotation is counter clockwise
+            dir_right = !rotate_dir;
             ms_counter = ms_counter + 1;
             
             //100,000 cycles = 1ms

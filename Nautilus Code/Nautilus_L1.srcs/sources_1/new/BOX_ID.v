@@ -21,6 +21,9 @@
 
 
 module BOX_ID(
+
+    //NEED TO CODE A SWITCH IN TO SET "MEMORY" MODE ON
+
     input sysClk,
     input echo_back,
     output trigger_back,
@@ -46,8 +49,12 @@ module BOX_ID(
     localparam DISPENSE = 4;
 
     //WILL COMPARE
-    wire[3:0] IR_VAL_1;
-    wire[3:0] IR_VAL2;
+    reg[3:0] IR_VAL_1;
+    reg[3:0] IR_VAL_2;
+    reg[3:0] IR_VAL_3;
+    reg[2:0] IR_INDEX;
+    
+    reg[3:0] CURRENT_IR; //stores current value of IR to compare when IR changes
 
     reg[19:0] ms_counter=0; //counter that counts to 1ms
     reg[19:0] ms_timer=0; //timer that counts up in ms
@@ -60,7 +67,7 @@ module BOX_ID(
     
     localparam escape_time = 3000; //time in ms it takes to escape from the bin after reenable
     localparam dispense_time = 3000;
-    localparam box_detect_time = 50; //time takes to verify that box was detected
+    localparam box_detect_time = 250; //time takes to verify that box was detected
 
     US_SENSOR us_sens_back(
         .clk(sysClk),
@@ -82,7 +89,7 @@ module BOX_ID(
         .distance(us_distance)
     );
    
-   wire IR_fallbac;
+   wire IR_fallback;
    wire[3:0] IR_val;
    wire dot_match;
    wire dash_match;
@@ -124,12 +131,13 @@ module BOX_ID(
         STATE = DRIVE;
         front_us_en = 1;
         back_us_en = 0;
+        CURRENT_IR=0;
     end
 
     always@(posedge sysClk) begin
     
         ms_counter = ms_counter + 1;
-        if(ms_counter > 99999) begin
+        if(ms_counter > 99_999) begin
             ms_counter <= 0;
             ms_timer <= ms_timer + 1;
         end
@@ -147,6 +155,11 @@ module BOX_ID(
                             ms_timer <= 0;
                             ms_counter <= 0;
                     end
+                    else if(back_detected) begin
+                            STATE <= BACK_DETECT;
+                            ms_timer <= 0;
+                            ms_counter <= 0;
+                    end
                 end
             end
             FRONT_DETECT: begin
@@ -159,13 +172,13 @@ module BOX_ID(
                     ms_timer <=0;
                     ms_counter <= 0;
                 end
-                if(front_detected && back_detected) begin
+                else if(front_detected && back_detected) begin
                     STATE = SCANNING;
                     ms_timer <=0;
                     ms_counter <= 0;
                 end
                 //IN CASE OF ERRONEOUS DETECTION. RETURNS AFTER SOME SECONDS OF NO SIGNAL
-                else if(!front_detected && !back_detected && ms_timer > box_detect_time*2) begin
+                else if(!front_detected && !back_detected && ms_timer > box_detect_time*5) begin
                     STATE = DRIVE;
                     ms_timer <= escape_time;
                     ms_counter <= 0;
@@ -180,13 +193,13 @@ module BOX_ID(
                     ms_timer <=0;
                     ms_counter <= 0;
                 end
-                if(front_detected && back_detected) begin
+                else if(front_detected && back_detected) begin
                     STATE <= SCANNING;
                     ms_timer <=0;
                     ms_counter <= 0;
                 end
                 //IN CASE OF ERRONEOUS DETECTION. RETURNS AFTER 2 SECONDS OF NO SIGNAL
-                else if(!front_detected && !back_detected && ms_timer > box_detect_time*2) begin
+                else if(!front_detected && !back_detected && ms_timer > box_detect_time*5) begin
                     STATE = DRIVE;
                     ms_timer <= escape_time;
                     ms_counter <= 0;
@@ -197,8 +210,24 @@ module BOX_ID(
                     //disable ultrasonic for scanning
                     front_us_en = 0;
                     back_us_en = 0;
+                    
+                    //on rising edge of ir value change
+                    if(IR_val != CURRENT_IR && IR_val != 4'hE && IR_val != 0) begin
+                        if(IR_INDEX == 0) begin
+                            IR_VAL_1 = IR_val;
+                        end
+                        else if(IR_INDEX == 1) begin
+                            IR_VAL_2 = IR_val;
+                        end
+                        else if(IR_INDEX==2) begin
+                            IR_VAL_3 = IR_val;
+                        end
+                        
+                        IR_INDEX <= IR_INDEX > 1 ? 0 : IR_INDEX + 1;
+                    end
+                    
                     //temp process. Need to insert IR decoding / handling here
-                    if(continue) begin
+                    if(continue || ((IR_VAL_1==IR_VAL_2 && IR_VAL_1==IR_VAL_3) && IR_VAL_1 != 0 && IR_VAL_1 != 4'hE)) begin
                         STATE <= DISPENSE;
                         ms_timer <= 0;
                         ms_counter <= 0;
@@ -221,7 +250,7 @@ module BOX_ID(
             end
             DISPENSE: begin
                 //marble_val = IR_VAL_1;
-                marble_val = 1; //replace with result of decodings
+                marble_val = IR_VAL_1; //replace with result of decodings
                 if(ms_timer > 3000) begin
                     STATE <= DRIVE;
                     ms_timer <= 0;
@@ -229,6 +258,8 @@ module BOX_ID(
                 end
             end
         endcase
+        
+        CURRENT_IR = IR_val;
     end
 
 endmodule

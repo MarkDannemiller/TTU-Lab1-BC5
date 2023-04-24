@@ -43,7 +43,17 @@ module Top (
     input vn_in,
     
     //MOTOR CONTROL
-    output wire[7:0] JA,
+    //output wire[7:0] JA,
+    
+    output wire JA1_ENA,
+    output wire JA2_IN1,
+    output wire JA3_IN2,
+    output wire JA7_ENB,
+    output wire JA8_IN3,
+    output wire JA9_IN4,
+    
+    inout wire JA4_I2C_SDA,
+    inout wire JA10_I2C_SCL,
 
     //IPS_SENSOR
     input wire JB0_IPS, //JB1 FRONT
@@ -55,10 +65,10 @@ module Top (
     //PAYLOAD DESIGNATION UNIT
     //IR
     input wire JC1_IR,
-    //US SENSOR FRONT
+    //US SENSOR BACK
     output wire JC8_TRIGGER,
     input wire JC7_ECHO,
-    //US SENSOR BACK
+    //US SENSOR FRONT
     output wire JC10_TRIGGER,
     input wire JC9_ECHO,
     input wire btnC, //temp continue for PDU to be replaced by IR decoding
@@ -72,7 +82,7 @@ module Top (
    
     
     //LEFT MOTOR: PMOD PINS 5, 6, 11, 12 ARE VCC AND GNDS
-    parameter ENA_PMOD = 0; //PIN 1
+    /*parameter ENA_PMOD = 0; //PIN 1
     parameter IN1_PMOD = 1; //PIN 2
     parameter IN2_PMOD = 2; //PIN 3        
     //LEFT MOTOR INTERRUPT AND CURRENT DISPLAY DATA
@@ -83,6 +93,10 @@ module Top (
     parameter ENB_PMOD = 4; //PIN 7
     parameter IN3_PMOD = 5; //PIN 8
     parameter IN4_PMOD = 6; //PIN 9
+    
+    localparam I2C_SDA = 3; //PIN 4
+    localparam I2C_SCL = 7; //PIN 10*/
+    
     //RIGHT MOTOR INTERRUPT AND CURRENT DISPLAY DATA
     wire m_interr_right;
     wire[19:0] d_data_right;
@@ -117,7 +131,7 @@ module Top (
     localparam SCANNING = 3;
     localparam DISPENSE = 4;
     
-    localparam BOX_DETECT_SPEED = 4'd4; //go slow when finding box
+    localparam BOX_DETECT_SPEED = 4'd3; //go slow when finding box
     
     assign led[10:7] = motor_mode;
     //wire[3:0] ips_state;
@@ -163,7 +177,10 @@ module Top (
         .dpEnable(4'b1000), 
         .segPorts(seg), 
         .dpPort(dp), 
-        .anode(an)
+        .anode(an),
+        
+        .sda(JA4_I2C_SDA),
+        .scl(JA10_I2C_SCL)
     );
     
     //#region left_motor
@@ -190,9 +207,9 @@ module Top (
         //.mode(sw[3:0]),
         .mode(motor_mode), 
         .clk(sysClk), 
-        .ENA(JA[ENA_PMOD]),
-        .IN1(JA[IN1_PMOD]),
-        .IN2(JA[IN2_PMOD])
+        .ENA(JA1_ENA),
+        .IN1(JA2_IN1),
+        .IN2(JA3_IN2)
     );
     //#endregion
     
@@ -221,9 +238,9 @@ module Top (
         //.mode(sw[3:0]),
         .mode(motor_mode), 
         .clk(sysClk), 
-        .ENA(JA[ENB_PMOD]),
-        .IN1(JA[IN3_PMOD]),
-        .IN2(JA[IN4_PMOD])
+        .ENA(JA7_ENB),
+        .IN1(JA8_IN3),
+        .IN2(JA9_IN4)
     );
     //#endregion
     
@@ -243,10 +260,10 @@ module Top (
         
     BOX_ID PDU (
         .sysClk(sysClk),
-        .echo_back(JC7_ECHO),
-        .trigger_back(JC8_TRIGGER),
-        .echo_front(JC9_ECHO),
-        .trigger_front(JC10_TRIGGER),
+        .echo_back(JC9_ECHO),
+        .trigger_back(JC10_TRIGGER),
+        .echo_front(JC7_ECHO),
+        .trigger_front(JC8_TRIGGER),
         .IR_in(JC1_IR),
         .continue(btnC), //dummy value
         .us_distance(us_distance),
@@ -273,39 +290,49 @@ module Top (
     //HANDLE ROVER NAVIGATION BASED ON IPS RIGH AND PAYLOAD DESIGNATION UNIT
     always@(posedge sysClk) begin
         
-        case(PDU_STATE)
-            DRIVE: begin
-                motor_mode = IPS_motor_mode;
-                motor_en_l = IPS_motor_en_l;
-                motor_en_r = IPS_motor_en_r;
-                dir_l = !IPS_dir_l;
-                dir_r = !IPS_dir_r;
-            end
-            FRONT_DETECT: begin
+        //THE SECOND SWITCH WILL DISABLE PDU BEHAVIOR
+        if(!sw[1]) begin
+            case(PDU_STATE)
+                DRIVE: begin
+                    motor_mode = IPS_motor_mode;
+                    motor_en_l = IPS_motor_en_l;
+                    motor_en_r = IPS_motor_en_r;
+                    dir_l = IPS_dir_l;
+                    dir_r = IPS_dir_r;
+                end
+                FRONT_DETECT: begin
+                    motor_mode = BOX_DETECT_SPEED;
+                    motor_en_l = 1;
+                    motor_en_r = 1;
+                    //MOVE FORWARDS
+                    dir_l = 0;
+                    dir_r = 1;
+                end
+                BACK_DETECT: begin
                 motor_mode = BOX_DETECT_SPEED;
-                motor_en_l = 1;
-                motor_en_r = 1;
-                //MOVE FORWARDS
-                dir_l = 1;
-                dir_r = 0;
-            end
-            BACK_DETECT: begin
-            motor_mode = BOX_DETECT_SPEED;
-                motor_en_l = 1;
-                motor_en_r = 1;
-                //MOVE BACKWARDS
-                dir_l = 0;
-                dir_r = 1;
-            end
-            //OTHERWISE SCANNING OR DISPENSE OR DISABLE IF IMPLEMENTED
-            default: begin
-                motor_mode = 1'd0;
-                motor_en_l = 0;
-                motor_en_r = 0;
-                //STATIONARY
-                dir_l = 1;
-                dir_r = 0;
-            end
-        endcase
+                    motor_en_l = 1;
+                    motor_en_r = 1;
+                    //MOVE BACKWARDS
+                    dir_l = 1;
+                    dir_r = 0;
+                end
+                //OTHERWISE SCANNING OR DISPENSE OR DISABLE IF IMPLEMENTED
+                default: begin
+                    motor_mode = 1'd0;
+                    motor_en_l = 0;
+                    motor_en_r = 0;
+                    //STATIONARY
+                    dir_l = 0;
+                    dir_r = 1;
+                end
+            endcase
+         end
+         else begin
+            motor_mode = IPS_motor_mode;
+            motor_en_l = IPS_motor_en_l;
+            motor_en_r = IPS_motor_en_r;
+            dir_l = IPS_dir_l;
+            dir_r = IPS_dir_r;
+         end
     end
 endmodule

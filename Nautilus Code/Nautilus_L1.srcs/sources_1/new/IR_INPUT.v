@@ -51,7 +51,7 @@ localparam START_LENGTH = 7; //LENGTH OF START/END CHARACTER IN UNITS
 
 localparam true = 1;
 localparam false = 0;
-localparam CHAR_MIN_MS = 45;
+localparam CHAR_MIN_MS = 55;
 //dlocalparam UNIT_THRESHOLD = 0.75; //MIN AMOUNT OF TIME A UNIT WAS PROCESSED FOR IT TO BE CONSIDERED ACCURATE
 localparam CHAR_MS = 60; //60 MS IS EXPECTED PER CHARACTER
 
@@ -99,7 +99,7 @@ reg force_update; //to force update at end of code process for immediate next st
 
 always@(posedge clk) begin
 
-    if(decode_ready && decode_en)
+    if(morse_ready && decode_en)
         decode_en = false;
 
     //disable module and reset registers
@@ -167,7 +167,7 @@ always@(posedge clk) begin
                         new_val = incoming_bit << bit_index; //shift incoming bit to correct position in 60 bit array
                         bit_index = bit_index + 1;
                     end
-                    //or was 11 processed? (shouldn't be)
+                    //or was 11 or 00 processed? (shouldn't be)
                     else if (ms_timer >= CHAR_MIN_MS * 2 && ms_timer < CHAR_MIN_MS * 3) begin
                         //overflow condition
                         if(bit_index + 1 > 59) begin
@@ -178,16 +178,49 @@ always@(posedge clk) begin
                         new_val = (incoming_bit << bit_index) | (incoming_bit << bit_index+1);
                         bit_index = bit_index + 2;
                     end
-                    //or was 111 processed? (dash case)
-                    else if(ms_timer >= CHAR_MIN_MS * 3) begin
+                    //or was 111 or 000 processed? (dash case)
+                    else if(ms_timer >= CHAR_MIN_MS * 3 && ms_timer < CHAR_MIN_MS * 4) begin
                         //overflow condition
                         if(bit_index + 2 > 59) begin
                             overflow <= true;
                         end
                         
-                        //new_val is 111 or 000 (note, 000 should have been caught as an end character)
+                        //new_val is 111 or 000
                         new_val = (incoming_bit << bit_index) | (incoming_bit << bit_index+1) | (incoming_bit << bit_index+2);
                         bit_index = bit_index + 3;
+                    end
+                    //or was 1111 or 00000 processed? (EDGE CASE)
+                    else if(ms_timer >= CHAR_MIN_MS * 4 && ms_timer < CHAR_MIN_MS * 5) begin
+                        //overflow condition
+                        if(bit_index + 2 > 59) begin
+                            overflow <= true;
+                        end
+                        
+                        //new_val is 1111 or 0000
+                        new_val = (incoming_bit << bit_index) | (incoming_bit << bit_index+1) | (incoming_bit << bit_index+2) | (incoming_bit << bit_index+3);
+                        bit_index = bit_index + 4;
+                    end
+                    //or was 11111 or 00000 processed? (EDGE CASE)
+                    else if(ms_timer >= CHAR_MIN_MS * 5 && ms_timer < CHAR_MIN_MS * 6) begin
+                        //overflow condition
+                        if(bit_index + 2 > 59) begin
+                            overflow <= true;
+                        end
+                        
+                        //new_val is 11111 or 00000
+                        new_val = (incoming_bit << bit_index) | (incoming_bit << bit_index+1) | (incoming_bit << bit_index+2) | (incoming_bit << bit_index+3) | (incoming_bit << bit_index+4);
+                        bit_index = bit_index + 5;
+                    end
+                    //or was 111111 or 000000 processed? (EDGE CASE)
+                    else if(ms_timer >= CHAR_MIN_MS * 6 && ms_timer < CHAR_MIN_MS * 7) begin
+                        //overflow condition
+                        if(bit_index + 2 > 59) begin
+                            overflow <= true;
+                        end
+                        
+                        //new_val is 111111 or 000000
+                        new_val = (incoming_bit << bit_index) | (incoming_bit << bit_index+1) | (incoming_bit << bit_index+2 | (incoming_bit << bit_index+3) | (incoming_bit << bit_index+4) | (incoming_bit << bit_index+5));
+                        bit_index = bit_index + 6;
                     end
                     //otherwise the bit that was processed was too short; bit index remains the same and the program will try again with the next bit
                     else begin
@@ -222,7 +255,7 @@ endmodule
 * MODULE THAT DECODES A 13b-15b MORSE BITSTREAM TO 1, 2, OR 3.
 * IMPLEMENTS ONE OF TWO PROCESSES BASED ON WHETHER INCOMING STREAM PERFECTLY MATCHES ONE OF THE THREE MORSE VALUES
 * IF STREAM DOES NOT PERFECTLY MATCH, ATTEMPTS TO INTERPOLATE BASED ON NUMBER OF DOTS AND DASHES EXPECTED
-* IF STREAM SIZE IS NOT COMPARABLE TO ANY NUMBER OR IF BIT STREAMS ARE NONSENSE, RETURNS FALSE/0
+* IF STREAM SIZE IS NOT COMPARABLE TO ANY NUMBER OR IF BIT STREAMS ARE NONSENSE, RETURNS FALSE/E
 * 
 **/
 module MORSE_DECODER (input enable, input clk, input[59:0] bitstream, 
@@ -249,7 +282,7 @@ module MORSE_DECODER (input enable, input clk, input[59:0] bitstream,
     reg[4:0] compare_dot;
     reg[4:0] compare_dash;
     reg[9:0] compare_separator; //separation value from ones and dashes
-    //reg[9:0] stream_end_val; //index of the end stream
+    reg[9:0] stream_end_val; //index of the end stream
     
     reg enable_last; //MODULE MUST BE DISABLED THEN RENABLED
 
@@ -272,30 +305,30 @@ module MORSE_DECODER (input enable, input clk, input[59:0] bitstream,
                             
             //SET NUMBER OF DASHES/DOTS TO COMPARE TO FOR FALLBACK DECODING PROCESS
             //THIS CODE BASICALLY CHECKS THE SIZE OF THE INPUT
-            /*if(bitstream[THREE_SIZE+6:THREE_SIZE] == 7'b0000000) begin
+            if(bitstream[THREE_SIZE+6:THREE_SIZE] == 7'b0000000) begin
                     compare_dash <= 5'd02;
                     compare_dot <= 5'd03;
                     compare_separator <= 10'd05;
-                    //stream_end_val <= THREE_SIZE;
+                    stream_end_val <= THREE_SIZE;
             end
             else if(bitstream[TWO_SIZE+6:TWO_SIZE] == 7'b0000000) begin
                     compare_dash <= 5'd03;
                     compare_dot <= 5'd02;
                     compare_separator <= 10'd03;
-                    //stream_end_val <= TWO_SIZE;
+                    stream_end_val <= TWO_SIZE;
             end
-            else (if(bitstream[ONE_SIZE+6:ONE_SIZE] == 7'b0000000) begin
+            else if(bitstream[ONE_SIZE+6:ONE_SIZE] == 7'b0000000) begin
                     compare_dash <= 5'd04;
                     compare_dot <= 5'd01;
                     compare_separator <= 10'd01; //EXPECTED INDEX TO SWITCH FROM DOTS TO DASHES
-                    //stream_end_val <= ONE_SIZE;
+                    stream_end_val <= ONE_SIZE;
             end
             //IF STREAM DOES NOT MATCH LENGTH OF ANY KNOWN NUMBER
             else begin
                     ready = true;
                     out = 4'hE; //4=NOT FOUND
                     fallback = true;
-            end*/
+            end
         end
         else if(enable && !ready) begin
             //TO BEGIN, CHECK AGAINST PERFECT CASES
@@ -323,19 +356,30 @@ module MORSE_DECODER (input enable, input clk, input[59:0] bitstream,
             //IF NO PERFECT CASE WAS FOUND, GUESS AGAINST NUMBER OF DASHES/DOTS RECEIVED (FALLBACK DECODING MODE)
             else begin
                 fallback = true; //trigger such that upper modules know that fallback was hit
-
+                
+                //when compare_separator is reached, add another dot if one_counter is greater than 0.  After this, the code will begin searching for dashes
+                if(shift_counter == compare_separator) begin
+                    if(temp_stream[0] == 1) begin
+                        one_counter = one_counter + 1;
+                    end
+                
+                    if(one_counter != 0) begin
+                        dot_counter = dot_counter + 1;
+                    end
+                    one_counter = 0;
+                end
                 //BEGIN BY CHECKING FOR A SINGLE ERRONEOUS BIT BASED ON BITSTREAM LENGTH (WILL CHECK IF DASHES ARE CORRECT, THEN DOTS)
-                if(temp_stream[0] == 1) begin
+                else if(temp_stream[0] == 1) begin
                     one_counter = one_counter + 1;
                 end
                 //DECIPHER STREAM OF ONES WHEN 0 IS ENCOUNTERED
                 else begin
                     //CASE WHEN DASHES APPEAR NORMAL OR BIGGER BETWEEN 3->6 ONES LONG (IF A DASH IS 5 ONES LONG, THEN THE RESULT SHOULD NOT OCCUR BASED ON DASHES)
-                    if(one_counter > 2 && one_counter < 7) begin
+                    if(one_counter > 2 && one_counter < 7 && shift_counter > compare_separator) begin
                         dash_counter = dash_counter + 1;
                     end
                     //CASE WHEN AN EXTRA 1 WAS READ EX: (11101110111011111)
-                    else if((one_counter == 1 || one_counter == 2)) begin
+                    else if((one_counter == 1 || one_counter == 2) && shift_counter < compare_separator) begin
                         dot_counter = dot_counter + 1;
                     end
                     //EDGE CASE WHERE A 0 BETWEEN DOTS 0101 IS A ONE SOMEHOW (0101 -> 0111)
@@ -350,25 +394,25 @@ module MORSE_DECODER (input enable, input clk, input[59:0] bitstream,
                 temp_stream = temp_stream >> 1; //shift temp_stream for next bit handling
 
                 //DECODER REACHED END OF STREAM
-                if(shift_counter > ONE_SIZE+5) begin
+                if(shift_counter > stream_end_val) begin
 
                     out = 4'hE; //overriden if counters found a match
                     ready <= true;
 
-                    if(dot_counter >= 1) begin
-                        out = dot_counter == 5'd01 ? 4'd1 :
-                              dot_counter == 5'd02 ? 4'd2 :
-                              dot_counter == 5'd03 ? 4'd3 :
+                    if(dot_counter == compare_dot) begin
+                        out = compare_dot == 5'd01 ? 4'd1 :
+                              compare_dot == 5'd02 ? 4'd2 :
+                              compare_dot == 5'd03 ? 4'd3 :
                               out;
                         dot_match = out != 4'hE ? true : false;
                     end
                     else
                         dot_match = false;
-                    if(dash_counter >= 2) begin                 
+                    if(dash_counter == compare_dash) begin                 
                         dash_match = true;
-                        out = dash_counter == 5'd04 ? 4'd1 :
-                              dash_counter == 5'd03 ? 4'd2 :
-                              dash_counter == 5'd02 ? 4'd3 :
+                        out = compare_dash == 5'd04 ? 4'd1 :
+                              compare_dash == 5'd03 ? 4'd2 :
+                              compare_dash == 5'd02 ? 4'd3 :
                               out;
                               
                         dot_match = 5 - dash_match == dot_counter ? true : false; //when dash is found, the dot found must match the pair.

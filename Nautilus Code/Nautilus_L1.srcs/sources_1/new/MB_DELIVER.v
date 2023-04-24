@@ -34,8 +34,8 @@ module MB_DELIVER(
     reg [3:0] S3_State;
     
     //Setting open and close for servos as local parameters
-    localparam OPEN = 4'h2;
-    localparam CLOSED = 4'h1;
+    localparam OPEN = 4'h1;
+    localparam CLOSED = 4'h2;
     
     
     PWM_SRC #(50) S1_PWM(clk, S1_State, Barr1);

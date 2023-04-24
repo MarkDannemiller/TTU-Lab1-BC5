@@ -19,7 +19,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-
+//THIS MODULES DUTY IS TO DISPLAY DATA ON THE 7 SEGMENT AND SEND DATA TO THE ESP32 VIA I2C
 module DATA_HANDLER (
     input [19:0] data,      //5 bits per display, MSB enable with 4 bits for hex code
     input clk,
@@ -28,8 +28,58 @@ module DATA_HANDLER (
     input [3:0] dpEnable,   //decimal point enable for each display
     output [6:0] segPorts,   //ports corresponding to each segment (all displays share these ports)
     output dpPort,
-    output [3:0] anode      //specifies which of the 4 displays to be temp turned on while cycling
+    output [3:0] anode,      //specifies which of the 4 displays to be temp turned on while cycling
+    
+    //I2C pins
+    inout sda,
+    inout scl
     );
+    
+   
+   localparam SLAVE_ADDRESS = 7'd01; 
+    
+    reg[7:0] data_to_write = 8'h01; //queued data to write
+    reg reset_in = 1'b1;
+    reg ena=0;
+    reg[6:0] slave_addr;
+    reg rw=0;
+    reg[7:0] data_wr; //current data being written
+    wire[7:0] data_rd;
+    wire busy;
+    wire ack_error;
+    
+    //I2C COMPONENT TO HANDLE SENDING DATA TO ESP32
+    i2c_master esp_messenger (
+        .clk(clk),
+        .reset_n(reset_in),
+        .ena(ena),
+        .addr(slave_addr),
+        .rw(rw),
+        .data_wr(data_wr),
+        .data_rd(data_rd),
+        .busy(busy),
+        .ack_error(ack_error),
+        .sda(sda),
+        .scl(scl)
+    );
+    
+    initial begin
+        ena=1;
+        data_wr = data_to_write;
+    end
+    
+    always@(posedge clk) begin
+        
+        if(!busy) begin
+            data_to_write = data_to_write + 1; //increment to see sample data
+        
+            ena <= 1;
+            slave_addr <= SLAVE_ADDRESS;
+            rw <= 0; //write transaction
+            data_wr <= data_to_write;
+        end
+    end
+    
     
     //Cycle clock to display data to each of the 4 displays
     //For a decent test, change to 2.  For FPGA, change to 16
