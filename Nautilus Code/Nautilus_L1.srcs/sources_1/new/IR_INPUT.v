@@ -44,7 +44,7 @@ output wire dot_match,
 output wire dash_match,
 output morse_fallback,
 output [3:0] value
-    );
+);
 assign LED = IR_Pin;
 
 localparam START_LENGTH = 7; //LENGTH OF START/END CHARACTER IN UNITS
@@ -68,9 +68,10 @@ reg[5:0] bit_index;
 reg[19:0] ms_counter; //counter that counts to 1ms
 reg[11:0] ms_timer; //timer that counts up to 1024ms maximum
 
+reg[11:0] ms_timer_carry; //used when IR value is too small
+reg IR_carry; //used when IR value is too small
+
 //DECODER VALUES
-//reg[59:0] process_stream; //stream that will only update when full stream is processed and sent to decoder
-//reg[471:0] timestream;
 reg decode_en;
 wire morse_ready;
 
@@ -88,7 +89,6 @@ MORSE_DECODER decoder (
 initial begin
     bitstream <= 60'b0;
     process_stream <= 60'b0;
-    //timestream = 472'b0;
     bit_index <= 0;
     start <= false;
     reset <= false;
@@ -105,9 +105,7 @@ always@(posedge clk) begin
     //disable module and reset registers
     if(!enable) begin
         bitstream = 60'b0;
-        //process_stream <= 60'b0;
         bit_index <= 0;
-        //timestream = 472'b0;
         reset <= false;
         start = false;
         decode_en <= 0;
@@ -129,8 +127,6 @@ always@(posedge clk) begin
             start <= true;
             reset <= false;
             incoming_bit <= IR_Pin;
-            //ms_counter <= 0; //counter reset is not performed since after full code is received, then the starting character needs to be accepted again
-            //ms_timer <= 0;
             bit_index <= 0;
             bitstream = 60'b0;
             found_start_char <= false;
@@ -148,9 +144,20 @@ always@(posedge clk) begin
                 ms_counter = 0;
             end
 
+            //case when last bit was too short and needs to be merged with this one
+            if(ms_timer_carry != 0 && incoming_bit != IR_Pin) begin
+
+                //bias the incoming bit to larger state out of the current and previous state
+                incoming_bit = ms_timer > ms_timer_carry ? incoming_bit : IR_carry;
+                ms_timer =  ms_timer + ms_timer_carry; //the times of each value are appended as if ms_timer never reset
+                ms_timer_carry = 0;
+
+                //if value of ms_timer is still too low, then the process will repeat!
+            end
+
             //IF IR HAS CHANGED
             if(incoming_bit != IR_Pin) begin
-                
+                //if starting character is found, then we write to the bitstream
                 if(found_start_char) begin
                     if(force_update) begin
                         force_update = false;
@@ -222,19 +229,26 @@ always@(posedge clk) begin
                         new_val = (incoming_bit << bit_index) | (incoming_bit << bit_index+1) | (incoming_bit << bit_index+2 | (incoming_bit << bit_index+3) | (incoming_bit << bit_index+4) | (incoming_bit << bit_index+5));
                         bit_index = bit_index + 6;
                     end
-                    //otherwise the bit that was processed was too short; bit index remains the same and the program will try again with the next bit
+                    else new_val = 60'b0;
+
+                    //when value is too short, there must have been a spike that needs smoothing
+                    //either the next sequence will be larger or smaller than this one
+                    if (ms_timer < CHAR_MIN_MS)begin
+                        ms_timer_carry = ms_timer;
+                        IR_carry = incoming_bit;
+                    end
                     else begin
-                        new_val = 60'b0;
+                        ms_timer_carry = 0;
                     end
                     
-                     bitstream = bitstream | new_val;
+                    bitstream = bitstream | new_val;
                 end
                 //program monitors until finding start bit
                 else if(incoming_bit == 0 && ms_timer > CHAR_MIN_MS * START_LENGTH) begin
                     found_start_char <= true;
-                end
-            ms_counter = 0;
-            ms_timer = 0;
+                end        
+                ms_counter = 0;
+                ms_timer = 0;
             end
             //the case that the end character was found. Pass value to decoder
             else if(found_start_char && IR_Pin == 0 && ms_timer > CHAR_MIN_MS * START_LENGTH && !force_update) begin
@@ -243,7 +257,6 @@ always@(posedge clk) begin
                 decode_en = true; //START DECODER
                 force_update = true; //FORCE AN UPDATE OF THE NEXT BITSTREAM TO SEE START CHARACTER IMMEDIATELY
             end
-            
             incoming_bit = IR_Pin;
         end
     end
@@ -382,10 +395,6 @@ module MORSE_DECODER (input enable, input clk, input[59:0] bitstream,
                     else if((one_counter == 1 || one_counter == 2) && shift_counter < compare_separator) begin
                         dot_counter = dot_counter + 1;
                     end
-                    //EDGE CASE WHERE A 0 BETWEEN DOTS 0101 IS A ONE SOMEHOW (0101 -> 0111)
-                    //else if(one_counter == 3 && shift_counter < compare_separator) begin
-                      //  dot_counter = dot_counter + 1;
-                    //end
 
                     one_counter = 0;
                 end

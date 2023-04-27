@@ -45,10 +45,10 @@ module IPS_ARRAY(
     
     parameter FORWARD_SPEED = 4'd15; //specification of 4 bit speed mode for forward
     parameter REVERSE_SPEED = 4'd10; //specification of 4 bit speed mode for reverse
-    parameter TURN_SPEED = 4'd10; //specification of 4 bit turning speed
+    parameter TURN_SPEED = 4'd15; //specification of 4 bit turning speed
 
     parameter FORWARD_SLOW_SPEED = 4'd5;
-    parameter TURN_SLOW_SPEED = 4'd6;
+    parameter TURN_SLOW_SPEED = 4'd11;
     
     //The states of the IPS navigation system
     localparam FORWARD = 1;
@@ -105,12 +105,6 @@ module IPS_ARRAY(
         if(ms_counter > 100000) begin
             rotate_timer = rotate_timer + 1;
         end    
-        
-        //KEEPS SENSORS OPPOSITE SO THAT IF FRONT SENSOR LEAVES TAPE AND REENTERS, SENSOR VALUE WILL BE ACCEPTED
-        //if(!front) begin
-          //  current_ips_right = !current_ips_right;
-          //  current_ips_left = !current_ips_left;
-        //end
     
         //BEHAVIOR SHALL CHANGE BASED ON THE STATE OF THE ROVER. SEE NAVIGATION FLOWCHART FOR MORE INFORMATION
         case (state)
@@ -235,19 +229,4 @@ module IPS_ARRAY(
         current_ips_right = right;
         current_ips_left = left;
     end
-  /*  
-    //SENSOR TRIGGER CHANGES ROTATE DIRECTION WHEN IN FORWARD OPERATING MODE
-    always@(negedge ips_right) begin
-        if(state == FORWARD || state == FORWARD_SPECIAL) begin
-            rotate_dir = 0; //0 means clockwise
-        end
-    end
-    
-    //SENSOR TRIGGER CHANGES ROTATE DIRECTION WHEN IN FORWARD OPERATING MODE
-    always@(negedge ips_left) begin
-        if(state == FORWARD || state == FORWARD_SPECIAL) begin
-            rotate_dir = 1; //1 means counter clockwise
-        end
-    end
-    */
 endmodule

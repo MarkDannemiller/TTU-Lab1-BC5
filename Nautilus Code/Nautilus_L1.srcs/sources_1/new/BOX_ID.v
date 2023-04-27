@@ -89,6 +89,7 @@ module BOX_ID(
         .distance(us_distance)
     );
    
+   reg ir_enable;
    wire IR_fallback;
    wire[3:0] IR_val;
    wire dot_match;
@@ -124,7 +125,7 @@ module BOX_ID(
         .dot_match(dot_match),
         .dash_match(dash_match),
         .morse_fallback(IR_fallback),
-        .enable(1'b1) //test always on. write high later
+        .enable(ir_enable) //test always on. write high later
     );
     
     initial begin
@@ -144,6 +145,7 @@ module BOX_ID(
 
         case (STATE)
             DRIVE: begin
+                ir_enable = 0;
                 marble_val = 0;
                 front_us_en = 1;
                 back_us_en = 0;
@@ -163,6 +165,7 @@ module BOX_ID(
                 end
             end
             FRONT_DETECT: begin
+                ir_enable = 0;
                 marble_val = 0;
                 front_us_en = 1;
                 back_us_en = 1;
@@ -185,6 +188,7 @@ module BOX_ID(
                 end
             end
             BACK_DETECT: begin
+                ir_enable = 0;
                 marble_val = 0;
                 front_us_en = 1;
                 back_us_en = 1;
@@ -205,11 +209,13 @@ module BOX_ID(
                     ms_counter <= 0;
                 end
             end
+            //ADD TWO MORE STATES FOR FORWARD SEARCH AND REVERSE SEARCH
             SCANNING: begin
                 if(ms_timer > box_detect_time) begin
                     //disable ultrasonic for scanning
                     front_us_en = 0;
                     back_us_en = 0;
+                    ir_enable = 1; //enable ir
                     
                     //on rising edge of ir value change
                     if(IR_val != CURRENT_IR && IR_val != 4'hE && IR_val != 0) begin
@@ -234,6 +240,7 @@ module BOX_ID(
                     end
                 end
                 else begin
+                    ir_enable = 0;
                     front_us_en = 1;
                     back_us_en = 1;
                     if(front_detected && !back_detected) begin

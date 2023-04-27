@@ -53,7 +53,8 @@ module Top (
     output wire JA9_IN4,
     
     inout wire JA4_I2C_SDA,
-    inout wire JA10_I2C_SCL,
+    //inout wire JA10_I2C_SCL,
+    input wire JA10_I2C_SCL,
 
     //IPS_SENSOR
     input wire JB0_IPS, //JB1 FRONT
@@ -79,33 +80,11 @@ module Top (
     output wire JB9
     
     );
-   
-    
-    //LEFT MOTOR: PMOD PINS 5, 6, 11, 12 ARE VCC AND GNDS
-    /*parameter ENA_PMOD = 0; //PIN 1
-    parameter IN1_PMOD = 1; //PIN 2
-    parameter IN2_PMOD = 2; //PIN 3        
-    //LEFT MOTOR INTERRUPT AND CURRENT DISPLAY DATA
-    wire m_interr_left;
-    wire[19:0] d_data_left;
-    
-    //RIGHT MOTOR: PMOD PINS 5, 6, 11, 12 ARE VCC AND GNDS
-    parameter ENB_PMOD = 4; //PIN 7
-    parameter IN3_PMOD = 5; //PIN 8
-    parameter IN4_PMOD = 6; //PIN 9
-    
-    localparam I2C_SDA = 3; //PIN 4
-    localparam I2C_SCL = 7; //PIN 10*/
     
     //RIGHT MOTOR INTERRUPT AND CURRENT DISPLAY DATA
     wire m_interr_right;
     wire[19:0] d_data_right;
-    
-        
-    //https://digilent.com/reference/basys3/xadcdemo
-    localparam CH6 = 8'h16; //desired xadc channel for left motor
-    localparam CH14 = 8'h1E; //desired xadc channel for right motor
-    localparam CH7 = 8'h17; 
+
     
     //IPS MOTOR CONTROL PINS
     wire IPS_motor_en_l;
@@ -131,18 +110,20 @@ module Top (
     localparam SCANNING = 3;
     localparam DISPENSE = 4;
     
-    localparam BOX_DETECT_SPEED = 4'd3; //go slow when finding box
+    localparam BOX_DETECT_SPEED = 4'd4; //go slow when finding box
     
     assign led[10:7] = motor_mode;
     //wire[3:0] ips_state;
 //#ENDREGION
     
-    //parameter adc_channel = 8'h16; //XA1 (XADC CHANNEL 6)
     wire[7:0] active_adc_ch;
     wire[15:0] xa_data;
-    wire xa_ready;
+    wire xa_ready;       
+    //https://digilent.com/reference/basys3/xadcdemo
+    localparam CH6 = 8'h16; //desired xadc channel for left motor
+    localparam CH14 = 8'h1E; //desired xadc channel for right motor
+    localparam CH7 = 8'h17;  //desired xadc channel for battery voltage
     
-    //0=XA1_P ; 4=XA1_N (XADC CHANNEL 6)
     ADC_HANDLER adc (
         .clk(sysClk),
         .vauxp6(vauxp6),      .vauxn6(vauxn6), 
@@ -157,7 +138,7 @@ module Top (
           
         //WIRE AND REG FOR DISPLAYING ULTRASONIC DATA 
         wire[29:0] us_distance;
-        wire[19:0] us_data;
+        /*wire[19:0] us_data;
         assign us_data[19] = 1;
         assign us_data[18:15] = us_distance[15:12];
         assign us_data[14] = 1;
@@ -165,7 +146,7 @@ module Top (
         assign us_data[9] = 1;
         assign us_data[8:5] = us_distance[7:4];
         assign us_data[4] = 1;  
-        assign us_data[3:0] = us_distance[3:0];
+        assign us_data[3:0] = us_distance[3:0];*/
         
         wire[19:0] IR_display_data;
     

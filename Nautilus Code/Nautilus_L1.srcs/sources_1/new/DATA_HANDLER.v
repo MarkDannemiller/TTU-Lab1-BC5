@@ -19,66 +19,83 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-//THIS MODULES DUTY IS TO DISPLAY DATA ON THE 7 SEGMENT AND SEND DATA TO THE ESP32 VIA I2C
+/**
+* THIS MODULES DUTY IS TO DISPLAY DATA ON THE 7 SEGMENT AND SEND DATA TO THE ESP32 VIA I2C
+* This module also serves as an updater of constant data for items like rover speed, detection distance, etc for live updating the device
+**/
 module DATA_HANDLER (
     input [19:0] data,      //5 bits per display, MSB enable with 4 bits for hex code
     input clk,
-    input [15:0] battery_data,
     //input [3:0] display_en,
     input [3:0] dpEnable,   //decimal point enable for each display
     output [6:0] segPorts,   //ports corresponding to each segment (all displays share these ports)
     output dpPort,
     output [3:0] anode,      //specifies which of the 4 displays to be temp turned on while cycling
     
+    //20 BYTES OF BASYS DATA TO SEND TO ESP
+    input [7:0] battery_volts,      //val_0
+    input [7:0] curr_left,          //val_1
+    input [7:0] curr_right,         //val_2
+    input [7:0] ips_state,          //val_3
+    input [7:0] pdu_state,          //val_4
+    input [7:0] us_dist_front,      //val_5
+    input [7:0] us_dist_back,       //val_6
+    input [7:0] process_stream_1,   //val_7
+    input [7:0] process_stream_2,   //val_8
+    input [7:0] process_stream_3,   //val_9
+    input [7:0] decoded_val,        //val_10
+    input [7:0] flags,              //val_11
+    input [7:0] val_12,             //val_12
+    input [7:0] val_13,             //val_13
+    input [7:0] val_14,             //val_14
+    input [7:0] val_15,             //val_15
+    input [7:0] val_16,             //val_16
+    input [7:0] val_17,             //val_17
+    input [7:0] val_18,             //val_18
+    input [7:0] val_19,             //val_19
+        
+    
     //I2C pins
     inout sda,
-    inout scl
+    //inout scl
+    input scl
     );
     
-   
-   localparam SLAVE_ADDRESS = 7'd01; 
+    wire[159:0] basys_data;
+    wire[159:0] esp_data;
     
-    reg[7:0] data_to_write = 8'h01; //queued data to write
-    reg reset_in = 1'b1;
-    reg ena=0;
-    reg[6:0] slave_addr;
-    reg rw=0;
-    reg[7:0] data_wr; //current data being written
-    wire[7:0] data_rd;
-    wire busy;
-    wire ack_error;
+    //ASSIGN ALL 20 BYTES OF BASYS DATA FOR FEEDING INTO ESP
+    assign basys_data[7:0] = battery_volts;
+    assign basys_data[(1+1)*8-1:(1)*8] = curr_left;
+    assign basys_data[(2+1)*8-1:(2)*8] = curr_right;
+    assign basys_data[(3+1)*8-1:(3)*8] = ips_state;
+    assign basys_data[(4+1)*8-1:(4)*8] = pdu_state;
+    assign basys_data[(5+1)*8-1:(5)*8] = us_dist_front;
+    assign basys_data[(6+1)*8-1:(6)*8] = us_dist_back;
+    assign basys_data[(7+1)*8-1:(7)*8] = process_stream_1;
+    assign basys_data[(8+1)*8-1:(8)*8] = process_stream_2;
+    assign basys_data[(9+1)*8-1:(9)*8] = process_stream_3;
+    assign basys_data[(10+1)*8-1:(10)*8] = decoded_val;
+    assign basys_data[(11+1)*8-1:(11)*8] = 8'hAA;//flags;
+    assign basys_data[(12+1)*8-1:(12)*8] = 8'hAB;// val_12;
+    assign basys_data[(13+1)*8-1:(13)*8] = val_13;
+    assign basys_data[(14+1)*8-1:(14)*8] = val_14;
+    assign basys_data[(15+1)*8-1:(15)*8] = val_15;
+    assign basys_data[(16+1)*8-1:(16)*8] = val_16;
+    assign basys_data[(17+1)*8-1:(17)*8] = val_17;
+    assign basys_data[(18+1)*8-1:(18)*8] = val_18;
+    assign basys_data[(19+1)*8-1:(19)*8] = 8'hEE; //val_19;
     
-    //I2C COMPONENT TO HANDLE SENDING DATA TO ESP32
-    i2c_master esp_messenger (
-        .clk(clk),
-        .reset_n(reset_in),
-        .ena(ena),
-        .addr(slave_addr),
-        .rw(rw),
-        .data_wr(data_wr),
-        .data_rd(data_rd),
-        .busy(busy),
-        .ack_error(ack_error),
-        .sda(sda),
-        .scl(scl)
+    wire[10:0] bitcount; //debug
+    
+    I2C_COMMS esp_comms (
+    .CLCK(clk), 
+    .SCL(scl),
+    .SDA(sda),
+    .basys_data(basys_data),
+    .esp_data(esp_data),
+    .bitcount(bitcount)
     );
-    
-    initial begin
-        ena=1;
-        data_wr = data_to_write;
-    end
-    
-    always@(posedge clk) begin
-        
-        if(!busy) begin
-            data_to_write = data_to_write + 1; //increment to see sample data
-        
-            ena <= 1;
-            slave_addr <= SLAVE_ADDRESS;
-            rw <= 0; //write transaction
-            data_wr <= data_to_write;
-        end
-    end
     
     
     //Cycle clock to display data to each of the 4 displays
@@ -94,15 +111,22 @@ module DATA_HANDLER (
 	
 	//now multiplex, i.e., send alternate 1 bit enable and 4 bits of the input value to the display
 	wire [4:0] seg_data;	
-	assign seg_data = (digit_select ==  2'b00 ) ? data[4:0]:
+	/*assign seg_data = (digit_select ==  2'b00 ) ? data[4:0]:
 							 (digit_select ==  2'b01 ) ? data[9:5]:
 							 (digit_select ==  2'b10 ) ? data[14:10]:
 							 (digit_select ==  2'b11 ) ? data[19:15]:
-							 4'b1111;
-							 
+							 4'b1111;*/
+    ////////////////////////////////////////////////
+	assign seg_data[3:0] = (digit_select ==  2'b00 ) ? esp_data[3:0]:
+							 (digit_select ==  2'b01 ) ? esp_data[7:4]:
+							 (digit_select ==  2'b10 ) ? bitcount[7:4]:
+							 (digit_select ==  2'b11 ) ? bitcount[3:0]:
+							 4'b111;
+	assign seg_data[4] = 1;
+	///////////////////////////////////////////////						 
     ENABLE_DIGIT M_EnableDigit(digit_select, anode);
     SEVEN_SEG M_Seg(seg_data[3:0], seg_data[4], dpEnable[digit_select], segPorts, dpPort);
-endmodule
+    endmodule
 
 
 /*
