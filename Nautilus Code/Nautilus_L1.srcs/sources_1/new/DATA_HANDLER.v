@@ -24,15 +24,17 @@
 * This module also serves as an updater of constant data for items like rover speed, detection distance, etc for live updating the device
 **/
 module DATA_HANDLER (
-    input [19:0] data,      //5 bits per display, MSB enable with 4 bits for hex code
+    input [19:0] data,              //5 bits per display, MSB enable with 4 bits for hex code
     input clk,
-    //input [3:0] display_en,
-    input [3:0] dpEnable,   //decimal point enable for each display
-    output [6:0] segPorts,   //ports corresponding to each segment (all displays share these ports)
+    input scl_led,
+    input sda_led,
+    input ack_led,
+    input [3:0] dpEnable,           //decimal point enable for each display
+    output [6:0] segPorts,          //ports corresponding to each segment (all displays share these ports)
     output dpPort,
-    output [3:0] anode,      //specifies which of the 4 displays to be temp turned on while cycling
+    output [3:0] anode,             //specifies which of the 4 displays to be temp turned on while cycling
     
-    //20 BYTES OF BASYS DATA TO SEND TO ESP
+    //20 BYTES OF BASYS DATA TO SEND TO ESP.  FILL IN AS MUCH DATA UP TO 20 BYTES FOR THIS IMPLEMENTATION
     input [7:0] battery_volts,      //val_0
     input [7:0] curr_left,          //val_1
     input [7:0] curr_right,         //val_2
@@ -54,10 +56,10 @@ module DATA_HANDLER (
     input [7:0] val_18,             //val_18
     input [7:0] val_19,             //val_19
         
+    output reg reset_ir_flag, //to reset the new ir value flag
     
     //I2C pins
     inout sda,
-    //inout scl
     input scl
     );
     
@@ -76,17 +78,20 @@ module DATA_HANDLER (
     assign basys_data[(8+1)*8-1:(8)*8] = process_stream_2;
     assign basys_data[(9+1)*8-1:(9)*8] = process_stream_3;
     assign basys_data[(10+1)*8-1:(10)*8] = decoded_val;
-    assign basys_data[(11+1)*8-1:(11)*8] = 8'hAA;//flags;
-    assign basys_data[(12+1)*8-1:(12)*8] = 8'hAB;// val_12;
+    assign basys_data[(11+1)*8-1:(11)*8] = flags;
+    assign basys_data[(12+1)*8-1:(12)*8] = val_12;
     assign basys_data[(13+1)*8-1:(13)*8] = val_13;
     assign basys_data[(14+1)*8-1:(14)*8] = val_14;
     assign basys_data[(15+1)*8-1:(15)*8] = val_15;
     assign basys_data[(16+1)*8-1:(16)*8] = val_16;
     assign basys_data[(17+1)*8-1:(17)*8] = val_17;
     assign basys_data[(18+1)*8-1:(18)*8] = val_18;
-    assign basys_data[(19+1)*8-1:(19)*8] = 8'hEE; //val_19;
+    assign basys_data[(19+1)*8-1:(19)*8] = val_19;
     
     wire[10:0] bitcount; //debug
+    wire stop;
+    wire ack;
+    wire incycle;
     
     I2C_COMMS esp_comms (
     .CLCK(clk), 
@@ -94,16 +99,31 @@ module DATA_HANDLER (
     .SDA(sda),
     .basys_data(basys_data),
     .esp_data(esp_data),
-    .bitcount(bitcount)
+    .bitcount(bitcount),
+    .stop(stop),
+    .ack(ack),
+    .incycle(incycle)
     );
-    
+
+    assign ack_led = ack;
+    assign scl_led = scl;
+    assign sda_led = sda;
     
     //Cycle clock to display data to each of the 4 displays
     //For a decent test, change to 2.  For FPGA, change to 16
     parameter CLKBIT = 16;
     reg [CLKBIT:0] clk_div = 0;
+    reg ack_last; //to clear ir_flag as soon as new message is beginning to send.  This way, the ir flag will only be sent for one I2C cycle
     always @(posedge clk) begin
 		clk_div <= clk_div + 1;	
+		
+		//will reset flags when I2C has begun a new value
+		if(ack && !ack_last)
+		  reset_ir_flag = 1; 
+		else
+		  reset_ir_flag = 0;
+		  
+		ack_last = ack;
 	end 
 	
 	wire [1:0] digit_select; //used to select 1 of 4 displays
@@ -111,18 +131,19 @@ module DATA_HANDLER (
 	
 	//now multiplex, i.e., send alternate 1 bit enable and 4 bits of the input value to the display
 	wire [4:0] seg_data;	
-	/*assign seg_data = (digit_select ==  2'b00 ) ? data[4:0]:
+	assign seg_data = (digit_select ==  2'b00 ) ? data[4:0]:
 							 (digit_select ==  2'b01 ) ? data[9:5]:
 							 (digit_select ==  2'b10 ) ? data[14:10]:
 							 (digit_select ==  2'b11 ) ? data[19:15]:
-							 4'b1111;*/
-    ////////////////////////////////////////////////
-	assign seg_data[3:0] = (digit_select ==  2'b00 ) ? esp_data[3:0]:
+							 4'b1111;    
+	////////////////////////////////////////////////
+	//THIS PORTION CAN BE ACTIVATED TO ASSIGN THE 7-SEGMENT TO DEBUG THE I2C
+	/*assign seg_data[3:0] = (digit_select ==  2'b00 ) ? esp_data[3:0]:
 							 (digit_select ==  2'b01 ) ? esp_data[7:4]:
 							 (digit_select ==  2'b10 ) ? bitcount[7:4]:
 							 (digit_select ==  2'b11 ) ? bitcount[3:0]:
 							 4'b111;
-	assign seg_data[4] = 1;
+	assign seg_data[4] = 1;*/
 	///////////////////////////////////////////////						 
     ENABLE_DIGIT M_EnableDigit(digit_select, anode);
     SEVEN_SEG M_Seg(seg_data[3:0], seg_data[4], dpEnable[digit_select], segPorts, dpPort);

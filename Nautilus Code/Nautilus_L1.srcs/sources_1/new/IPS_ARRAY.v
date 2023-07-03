@@ -25,7 +25,7 @@ module IPS_ARRAY(
     output motor_en_r,
     output dir_l,
     output dir_r,
-    output[3:0] mode,
+    output[6:0] mode,
     output[4:0] m_state,
     
     input clk,
@@ -43,12 +43,26 @@ module IPS_ARRAY(
     parameter tolerance = 50; //degrees tolerance
     parameter turn_speed_d = 10; //degrees per second expected rotation speed
     
-    parameter FORWARD_SPEED = 4'd15; //specification of 4 bit speed mode for forward
+    /*parameter FORWARD_SPEED = 4'd15; //specification of 4 bit speed mode for forward
     parameter REVERSE_SPEED = 4'd10; //specification of 4 bit speed mode for reverse
-    parameter TURN_SPEED = 4'd15; //specification of 4 bit turning speed
+    parameter TURN_SPEED = 4'd10; //specification of 4 bit turning speed
 
     parameter FORWARD_SLOW_SPEED = 4'd5;
-    parameter TURN_SLOW_SPEED = 4'd11;
+    parameter TURN_SLOW_SPEED = 4'd8;*/
+    parameter FORWARD_SPEED = 7'd100; //specification of 4 bit speed mode for forward
+    parameter REVERSE_SPEED = 7'd75; //specification of 4 bit speed mode for reverse
+    parameter TURN_SPEED = 7'd85; //specification of 4 bit turning speed
+
+    parameter FORWARD_SLOW_SPEED = 7'd30;
+    parameter TURN_SLOW_SPEED = 7'd60;
+
+    /*parameter FORWARD_SPEED = 7'd80; //specification of 4 bit speed mode for forward
+    parameter REVERSE_SPEED = 7'd60; //specification of 4 bit speed mode for reverse
+    parameter TURN_SPEED = 7'd75; //specification of 4 bit turning speed
+
+    parameter FORWARD_SLOW_SPEED = 7'd30;
+    parameter TURN_SLOW_SPEED = 7'd60;*/
+    
     
     //The states of the IPS navigation system
     localparam FORWARD = 1;
@@ -66,7 +80,7 @@ module IPS_ARRAY(
     reg right_enable;
     reg dir_left;
     reg dir_right;
-    reg[3:0] speed;
+    reg[6:0] speed;
     
     //assign outputs to temp registers
     assign motor_en_l = left_enable;

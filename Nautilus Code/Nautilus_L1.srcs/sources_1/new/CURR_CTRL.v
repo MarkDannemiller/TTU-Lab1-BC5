@@ -28,15 +28,16 @@ module CURR_CTRL(
     output [19:0] data,
     output reg [15:0] led,
     
-    input[15:0] raw_xa_data,
-    input[7:0] xa_channel, //varying channel from ADC_Handler
-    input[7:0] m_channel, //desired current channel for this module to monitor
-    input xa_ready
+    //input[15:0] raw_xa_data,
+    input[15:0] xa_data
+    //input[7:0] xa_channel, //varying channel from ADC_Handler
+    //input[7:0] m_channel, //desired current channel for this module to monitor
+    //input xa_ready
     );
     
     //localparam CH6 = 8'h16; //desired xadc channel
     
-    reg[15:0] xa_data; //only updates when xa_channel = CH6
+    //reg[15:0] xa_data; //only updates when xa_channel = CH6
     
     //binary to decimal converter signals
     reg [32:0] count;
@@ -52,7 +53,7 @@ module CURR_CTRL(
     reg [1:0] state = S_IDLE;
     
     //DATA TO BE SENT TO DISPLAY    
-    reg [19:0] curr_data;
+    reg [15:0] curr_data;
     
     //OVERFLOW AND LATCH CONTROL
     reg overflow;
@@ -67,15 +68,15 @@ module CURR_CTRL(
    
     //SET A MAXIMUM CURRENT THRESHOLD AND ASSIGN DATA TO EITHER THAT OR "O.F"
     parameter max_curr = 16'hFFF0; //replace with maximum current threshold; 0xFFD0 = DEFAULT
-    assign data = overflow ? 20'b10000111110000000000 : curr_data; //display O.F or current
+    assign data = /*overflow ? 20'b10000111110000000000 :*/ curr_data; //display O.F or current
     assign interrupt = overflow ? 1 : 0; //INTERRUPT MOTOR CONTROL = 1
 
     
     //led visual dmm              
     always @(posedge(clk)) begin
    
-        if(xa_ready == 1'b1 && xa_channel == m_channel) begin
-            xa_data = raw_xa_data;
+        //if(xa_ready == 1'b1 && xa_channel == m_channel) begin
+            //xa_data = raw_xa_data;
             
             case (xa_data[15:12])
             1:  led <= 16'b11;
@@ -96,7 +97,6 @@ module CURR_CTRL(
             default: led <= 16'b1; 
             endcase
         end
-    end
     
     reg[15:0] peak_data = 0;
     
@@ -112,9 +112,7 @@ module CURR_CTRL(
                 peak_data = xa_data;
             if (count >= 10000000) begin
                 if (peak_data > 16'hFFD0) begin
-                    curr_data[19:5] <= 20'b100011000010000; //1.00
-                    curr_data[4] <= 1'b1;
-                    curr_data[3:0] <= direction ? 4'hF : 4'hB; //1.00F | 1.00B
+                    curr_data <= 16'b0001000000000000; //1.00
                     state <= S_IDLE;
                 end else begin
                     b2d_start <= 1'b1;
@@ -128,14 +126,7 @@ module CURR_CTRL(
         S_CONVERSION: begin
             b2d_start <= 1'b0;
             if (b2d_done == 1'b1) begin
-                curr_data[19] <= 1'b1;
-                curr_data[18:15] <= b2d_dout[15:12];
-                curr_data[14] <= 1'b1;
-                curr_data[13:10] <= b2d_dout[11:8];
-                curr_data[9] <= 1'b1;
-                curr_data[8:5] <= b2d_dout[7:4];
-                curr_data[4] <= 1'b1;
-                curr_data[3:0] <= direction ? 4'hF : 4'hB; //display forward or backward
+                curr_data = b2d_dout;
                 state <= S_IDLE;
             end
         end

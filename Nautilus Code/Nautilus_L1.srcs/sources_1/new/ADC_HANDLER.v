@@ -11,7 +11,14 @@
 // Tool Versions: 
 // Description: 
 //
-// This module handles sequencing the XADC channels and outputting the channel sequenced and the raw ADC data
+// This module handles sequencing the XADC channels and outputting the channel sequenced and the raw ADC data.
+// ADC stands for analog-to-digital-conversion.  This module can handle a voltage reference between 0v and 1v
+// and outputs the result in 16 bit resolution.  This means that the ADC could be used instead of comparators
+// in your designs for current control or other voltage monitoring operations.
+//
+// This specific module monitors ALL ADC ports and outputs what channel it is currently monitoring so that outside
+// modules can utilize whatever port they need.  Simply read the two links below and connect the XADC pins in the
+// same way here or see the online Wiki on the ADC to use this module.
 // 
 // Dependencies: 
 // 
@@ -39,6 +46,9 @@ module ADC_HANDLER (
     output wire [7:0] channel_out,
     
     output wire [15:0] xa_data,
+    output reg [15:0] ch_6,
+    output reg [15:0] ch_7,
+    output reg [15:0] ch_14,
     output ready
     );
     
@@ -60,12 +70,12 @@ module ADC_HANDLER (
         
     //xadc instantiation connect the eoc_out .den_in to get continuous conversion
     xadc_wiz_0 CoolADCd (
-        .daddr_in(Address_in),        // input wire [6 : 0] daddr_in
-        .dclk_in(clk),          // input wire dclk_in
-        .den_in(xadc_en),            // input wire den_in
-        .di_in(0),              // input wire9 [15 : 0] di_in
-        .dwe_in(0),            // input wire dwe_in
-        .busy_out(),        // output wire busy_out
+        .daddr_in(Address_in),      // input wire [6 : 0] daddr_in
+        .dclk_in(clk),              // input wire dclk_in
+        .den_in(xadc_en),           // input wire den_in
+        .di_in(0),                  // input wire9 [15 : 0] di_in
+        .dwe_in(0),                 // input wire dwe_in
+        .busy_out(),                // output wire busy_out
         .vauxp6(vauxp6),            // note since vauxn6, channel 6, is used  .daddr_in(ADC_ADDRESS), ADC_ADRESS = 16h, i.e., 010110 
         .vauxn6(vauxn6),            // note since vauxn6, channel 6, is used  .daddr_in(ADC_ADDRESS), ADC_ADRESS = 16h, i.e., 010110     
         .vauxp7(vauxp7),
@@ -76,10 +86,10 @@ module ADC_HANDLER (
         .vauxn15(vauxn15),
         .vn_in(vn_in), 
         .vp_in(vp_in),
-        .alarm_out(),      // output wire alarm_out
-        .do_out(xa_data),            // output wire [15 : 0] xa_data
+        .alarm_out(),               // output wire alarm_out
+        .do_out(xa_data),           // output wire [15 : 0] xa_data
         .eoc_out(xadc_en),          // output wire eoc_out
-        .channel_out(),  // output wire [4 : 0] channel_out
+        .channel_out(),             // output wire [4 : 0] channel_out
         .drdy_out(ready)
     );
     
@@ -99,6 +109,17 @@ module ADC_HANDLER (
             Address_in = CH14;
         else if(counter < 4 * MULTIPLIER)
             Address_in = CH15;
+            
+       
+       //update each channel as an output
+       if(ready) begin
+            if(Address_in == CH6)
+                ch_6 = xa_data;
+            else if(Address_in == CH7)
+                ch_7 = xa_data;
+            else if(Address_in == CH14)
+                ch_14 = xa_data;
+       end
     
     end
 endmodule

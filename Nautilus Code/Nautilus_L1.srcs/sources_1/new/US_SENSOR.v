@@ -59,62 +59,72 @@ module US_SENSOR #(parameter SAMPLE_MS = 100, parameter SAMPLE_PERCENT = 90)(
     //increment timer if we are receiving echo OR increment trigger timer if we are sending pulse
     always@(posedge clk)begin
     
-        //THIS BLOCK OF CODE SAMPLES EVERY SAMPLE_MS AND OUTPUTS WHETHER AN ON WAS DETECTED FOR SAMPLE_PERCENT OF THE TIME
-        sample_counter <= sample_counter + 1;
-        detected_counter <= detected_counter + detected; //detected is 1 or 0
-        if(sample_counter > SAMPLE_MS * CLOCK_TO_MS-1) begin
-            sampled = (detected_counter > (SAMPLE_MS * CLOCK_TO_MS-1) * SAMPLE_PERCENT/100);
-            sample_counter <= 0;
-            detected_counter <=0;
-        end
-        
-        //DISABLE TIMER WHEN NEGATIVE EDGE OF ECHO OCCURS
-        if(!echo_pin && timer_enable) begin
-            rising_edge = true;
-            
-            counter=counter+1;
-               
-            if(counter>99)begin
-                timer <= timer+1;
-                counter <= 0;
-                end
-        end
-        
-        //GET FINAL TIMER VALUE AT NEGATIVE EDGE OF ECHO
-        if(echo_pin && timer_enable && rising_edge) begin
-            final_timer_val <= timer;
-            timer_enable <= false;
-            rising_edge <= false;
-        end
-        
-        if(echo_pin) begin
-            
-            trigger_counter = trigger_counter + 1;
-            
-            //MEASURE TRIGGER TIMER IN MICROSECONDS
-            if(trigger_counter > 99) begin
-                trigger_timer <= trigger_timer + 1;
-                trigger_counter <= 0;
+        if(module_enable) begin
+            //THIS BLOCK OF CODE SAMPLES EVERY SAMPLE_MS AND OUTPUTS WHETHER AN ON WAS DETECTED FOR SAMPLE_PERCENT OF THE TIME
+            sample_counter <= sample_counter + 1;
+            detected_counter <= detected_counter + detected; //detected is 1 or 0
+            if(sample_counter > SAMPLE_MS * CLOCK_TO_MS-1) begin
+                sampled = (detected_counter > (SAMPLE_MS * CLOCK_TO_MS-1) * SAMPLE_PERCENT/100);
+                sample_counter <= 0;
+                detected_counter <=0;
             end
             
-            //TRIGGER FOR 10 MICROSECONDS; AFTER WHICH START COUNTING THE TIMER FOR DISTANCE CALCULATION
-            if(trigger_timer > 9 && trigger_timer < 20) begin
-                trig_reg <= 1;
-                timer <= 0;
-                counter <= 0;
-                timer_enable <= true;
+            //DISABLE TIMER WHEN NEGATIVE EDGE OF ECHO OCCURS
+            if(!echo_pin && timer_enable) begin
+                rising_edge = true;
+                
+                counter=counter+1;
+                    
+                if(counter>99)begin
+                    timer <= timer+1;
+                    counter <= 0;
+                    end
+            end
+            
+            //GET FINAL TIMER VALUE AT NEGATIVE EDGE OF ECHO
+            if(echo_pin && timer_enable && rising_edge) begin
+                final_timer_val <= timer;
+                timer_enable <= false;
+                rising_edge <= false;
+            end
+            
+            if(echo_pin) begin
+                
+                trigger_counter = trigger_counter + 1;
+                
+                //MEASURE TRIGGER TIMER IN MICROSECONDS
+                if(trigger_counter > 99) begin
+                    trigger_timer <= trigger_timer + 1;
+                    trigger_counter <= 0;
+                end
+                
+                //TRIGGER FOR 10 MICROSECONDS; AFTER WHICH START COUNTING THE TIMER FOR DISTANCE CALCULATION
+                if(trigger_timer > 9 && trigger_timer < 20) begin
+                    trig_reg <= 1;
+                    timer <= 0;
+                    counter <= 0;
+                    timer_enable <= true;
+                end
+                else begin
+                    trig_reg = 0;
+                end
             end
             else begin
-                trig_reg = 0;
+                trig_reg <= 0;
+                trigger_timer <= 0;
+                trigger_counter <= 0;
             end
         end
         else begin
+            sample_counter <= 0;
+            detected_counter <=0;
             trig_reg <= 0;
             trigger_timer <= 0;
             trigger_counter <= 0;
+            rising_edge = false;
+            timer_enable = false;
+            timer = 0;
+            final_timer_val = 99999;
         end
     end
-    
-        
-    
 endmodule

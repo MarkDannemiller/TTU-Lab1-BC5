@@ -2,6 +2,9 @@
 // Tool Versions: Vivado 2016.4
 // Description: converts an input in the range (0x0000-0xFFFF) to a hex string in the range (16'h0000-16'h1000)
 //              assert start & din, some amount of time later, done is asserted with valid dout
+//
+//  The purpose for doing this is to make the ADC data a string that we can display on the 7 segment display
+//
 // Dependencies: none
 // 
 // 03/23/2017(ArtVVB): Created

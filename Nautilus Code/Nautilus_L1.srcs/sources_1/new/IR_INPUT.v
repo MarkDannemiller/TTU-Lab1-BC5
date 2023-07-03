@@ -43,7 +43,8 @@ output reg overflow,
 output wire dot_match,
 output wire dash_match,
 output morse_fallback,
-output [3:0] value
+output [3:0] value,
+output morse_ready
 );
 assign LED = IR_Pin;
 
@@ -73,7 +74,6 @@ reg IR_carry; //used when IR value is too small
 
 //DECODER VALUES
 reg decode_en;
-wire morse_ready;
 
 MORSE_DECODER decoder (
     .enable(decode_en),
@@ -164,7 +164,7 @@ always@(posedge clk) begin
                         new_val = 60'b0;
                     end
                     //was 1 processed?
-                    else if(ms_timer >= CHAR_MIN_MS && ms_timer < CHAR_MIN_MS *2) begin
+                    else if(ms_timer >= CHAR_MIN_MS && ms_timer < CHAR_MS + CHAR_MIN_MS) begin
                         //overflow condition
                         if(bit_index > 59) begin
                             overflow <= true;
@@ -175,7 +175,7 @@ always@(posedge clk) begin
                         bit_index = bit_index + 1;
                     end
                     //or was 11 or 00 processed? (shouldn't be)
-                    else if (ms_timer >= CHAR_MIN_MS * 2 && ms_timer < CHAR_MIN_MS * 3) begin
+                    else if (ms_timer >= CHAR_MIN_MS * 2 && ms_timer < CHAR_MS * 2 + CHAR_MIN_MS) begin
                         //overflow condition
                         if(bit_index + 1 > 59) begin
                             overflow <= true;
@@ -186,7 +186,7 @@ always@(posedge clk) begin
                         bit_index = bit_index + 2;
                     end
                     //or was 111 or 000 processed? (dash case)
-                    else if(ms_timer >= CHAR_MIN_MS * 3 && ms_timer < CHAR_MIN_MS * 4) begin
+                    else if(ms_timer >= CHAR_MIN_MS * 3 && ms_timer < CHAR_MS * 3 + CHAR_MIN_MS) begin
                         //overflow condition
                         if(bit_index + 2 > 59) begin
                             overflow <= true;
@@ -197,7 +197,7 @@ always@(posedge clk) begin
                         bit_index = bit_index + 3;
                     end
                     //or was 1111 or 00000 processed? (EDGE CASE)
-                    else if(ms_timer >= CHAR_MIN_MS * 4 && ms_timer < CHAR_MIN_MS * 5) begin
+                    else if(ms_timer >= CHAR_MIN_MS * 4 && ms_timer < CHAR_MS * 4 + CHAR_MIN_MS) begin
                         //overflow condition
                         if(bit_index + 2 > 59) begin
                             overflow <= true;
@@ -208,7 +208,7 @@ always@(posedge clk) begin
                         bit_index = bit_index + 4;
                     end
                     //or was 11111 or 00000 processed? (EDGE CASE)
-                    else if(ms_timer >= CHAR_MIN_MS * 5 && ms_timer < CHAR_MIN_MS * 6) begin
+                    else if(ms_timer >= CHAR_MIN_MS * 5 && ms_timer < CHAR_MS * 5 + CHAR_MIN_MS) begin
                         //overflow condition
                         if(bit_index + 2 > 59) begin
                             overflow <= true;
@@ -219,7 +219,7 @@ always@(posedge clk) begin
                         bit_index = bit_index + 5;
                     end
                     //or was 111111 or 000000 processed? (EDGE CASE)
-                    else if(ms_timer >= CHAR_MIN_MS * 6 && ms_timer < CHAR_MIN_MS * 7) begin
+                    else if(ms_timer >= CHAR_MIN_MS * 6 && ms_timer < CHAR_MS * 6 + CHAR_MIN_MS) begin
                         //overflow condition
                         if(bit_index + 2 > 59) begin
                             overflow <= true;

@@ -26,7 +26,7 @@ module MOTOR_CTRL(
     input interrupt,
     
     //#region PWM MODULE VALUES
-    input[3:0] mode,
+    input[6:0] mode,
     input clk,
 
     output ENA,
