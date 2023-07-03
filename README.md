@@ -5,3 +5,7 @@ Welcome to our public repository.
 - To view our current version of the Digilent Basys3 HDL, see the "Nautilus Code" folder.
 - To view team resources such as a dynamic Basys3 2D model or the current version of the Dagu 5 rover chassis, see the "Team Resources" folder.
 - To understand our process and access tutorials to both our code and resources, see the "Wiki" page.
+\
+\
+\
+![Cover Pic](https://raw.githubusercontent.com/MarkDannemiller/TTU-Lab1-BC5/main/Repo%20Images/cover%20pic.PNG)
