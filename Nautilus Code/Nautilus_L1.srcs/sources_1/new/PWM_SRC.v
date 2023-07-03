@@ -9,7 +9,14 @@
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
-// Description: 
+// Description:
+//
+// This is a super easy to implement PWM module.  You can choose either the 7 bit control mode below or a 4 bit control mode
+// and attach the mode to 4 switches on the Basys for easy testing of 16 different speeds.  The advantage of the 7 bit mode
+// is that the inputted mode in decimal form directly corresponds to the duty cycle that the module will output!
+//
+// The frequency can be changed from 100hz directly in this file, or see the "Marble Delivery" module for an example of how to change it
+// on a use-by use basis.  This module is implemented in the "Motor Control" and "Marble Delivery" modules.
 // 
 // Dependencies: 
 // 
@@ -20,24 +27,21 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 //PWM MODULE THAT CONVERTS THE 100MHZ TO 100HZ
+//FREQ = Output frequency of this module
 module PWM_SRC #(parameter FREQ = 100)(input clk, input [6:0] mode, output pwm);
-
-    //parameter pwm2system = 2; //SET GLOBAL FREQUENCY CONVERSION FOR MODULE HERE (set to 1000000 for 100hz, 10 for test)
-    //parameter pwm2system = 10000; //SET GLOBAL FREQUENCY CONVERSION FOR MODULE HERE (set to 10000 for 100hz, 10 for test)
-    //parameter s = pwm2system == 0 ? 1 : $clog2(2 * pwm2system * 100); //DYNAMIC SIZING FOR FREQUENCY
-    
-     //1 CYCLE FREQUENCY IN HZ
 
     wire[21:0] p_duty; 
     reg[21:0] count; //, n_count;
     reg PWM_REG;
 
     assign pwm = PWM_REG;
-    /*assign p_duty = (mode==4'b0000)? 21'd0*(100000000/FREQ)/100: //6
-                    (mode==4'b0001)? 21'd5*(100000000/FREQ)/100:
-                    (mode==4'b0010)? 21'd10*(100000000/FREQ)/100:
-                    (mode==4'b0011)? 21'd15*(100000000/FREQ)/100:
-                    (mode==4'b0100)? 21'd24*(100000000/FREQ)/100:
+    
+    //Another method that uses a 4 bit control instead of 7 bit (useful because you can utilize 4 switches to test)
+    /*assign p_duty = (mode==4'b0000)? 21'd0*(100000000/FREQ)/100:
+                    (mode==4'b0001)? 21'd16*(100000000/FREQ)/100:
+                    (mode==4'b0010)? 21'd22*(100000000/FREQ)/100:
+                    (mode==4'b0011)? 21'd28*(100000000/FREQ)/100:
+                    (mode==4'b0100)? 21'd34*(100000000/FREQ)/100:
                     (mode==4'b0101)? 21'd40*(100000000/FREQ)/100:
                     (mode==4'b0110)? 21'd46*(100000000/FREQ)/100:
                     (mode==4'b0111)? 21'd52*(100000000/FREQ)/100:
@@ -50,8 +54,9 @@ module PWM_SRC #(parameter FREQ = 100)(input clk, input [6:0] mode, output pwm);
                     (mode==4'b1110)? 21'd94*(100000000/FREQ)/100:
                     (mode==4'b1111)? 21'd100*(100000000/FREQ)/100:
                     21'd0;*/
-                    
-     assign p_duty = (mode==7'd0)? 21'd0*(100000000/FREQ)/100: //6
+
+    //This control scheme means that the decimal input is directly the duty percent of the signal
+     assign p_duty = (mode==7'd0)? 21'd0*(100000000/FREQ)/100:
                     (mode==7'd1)? 21'd1*(100000000/FREQ)/100:
                     (mode==7'd2)? 21'd2*(100000000/FREQ)/100:
                     (mode==7'd3)? 21'd3*(100000000/FREQ)/100:
