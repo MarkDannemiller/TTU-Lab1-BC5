@@ -1,12 +1,12 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
+// Company: Boat Crew 5
+// Engineer: Mark Dannemiller
 // 
 // Create Date: 02/01/2023 12:07:17 AM
 // Design Name: 
 // Module Name: MOTOR_CTRL
-// Project Name: 
+// Project Name: Nautilus
 // Target Devices: 
 // Tool Versions: 
 // Description: 
@@ -16,6 +16,8 @@
 // Revision:
 // Revision 0.01 - File Created
 // Additional Comments:
+//
+// **Code is free to use as long as you attribute our GitHub repository for others to find the same resources.**
 // 
 //////////////////////////////////////////////////////////////////////////////////
 

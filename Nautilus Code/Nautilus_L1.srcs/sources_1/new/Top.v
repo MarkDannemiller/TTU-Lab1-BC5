@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
-// Company: LAB GROUP 5
-// Engineer: MDANNEMI
+// Company: Boat Crew 5
+// Engineer: Mark Dannemiller
 // 
 // Create Date: 01/30/2023 12:37:36 AM
 // Design Name: 
@@ -23,6 +23,8 @@
 // Revision: 0.1
 // Revision 0.01 - File Created
 // Additional Comments:
+//
+// **Code is free to use as long as you attribute our GitHub repository for others to find the same resources.**
 // 
 //////////////////////////////////////////////////////////////////////////////////
 

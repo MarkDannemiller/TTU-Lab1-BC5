@@ -9,6 +9,8 @@
 // 
 // 03/23/2017(ArtVVB): Created
 //
+// **Code is free to use as long as you attribute our GitHub repository for others to find the same resources.**
+// 
 //////////////////////////////////////////////////////////////////////////////////
 
 module bin2dec (

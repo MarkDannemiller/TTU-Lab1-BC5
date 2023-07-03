@@ -1,12 +1,12 @@
 `timescale 1us / 1us
 //////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
+// Company: Boat Crew 5
+// Engineer: Mark Dannemiller
 // 
 // Create Date: 03/18/2023 09:05:23 PM
 // Design Name: 
 // Module Name: IR_TB
-// Project Name: 
+// Project Name: Nautilus
 // Target Devices: 
 // Tool Versions: 
 // Description: 
@@ -16,6 +16,8 @@
 // Revision:
 // Revision 0.01 - File Created
 // Additional Comments:
+//
+// **Code is free to use as long as you attribute our GitHub repository for others to find the same resources.**
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
