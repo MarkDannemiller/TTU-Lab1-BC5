@@ -4,6 +4,7 @@ Robotics Project Lab 1 repository for Boat Crew 5 (Team 5).  Here is a compilati
 Welcome to our public repository.
 - To view our current version of the Digilent Basys3 HDL, see the "Nautilus Code" folder.
 - To view team resources such as a dynamic Basys3 2D model or the current version of the Dagu 5 rover chassis, see the "Team Resources" folder.
+- To see an example of a finalized team notebook OR to view our notebook denoting our progress throughout the semester, see the "Notebook" folder
 - To understand our process and access tutorials to both our code and resources, see the "Wiki" page.
 \
 \
