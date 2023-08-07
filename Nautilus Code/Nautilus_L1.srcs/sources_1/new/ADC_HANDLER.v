@@ -16,9 +16,9 @@
 // and outputs the result in 16 bit resolution.  This means that the ADC could be used instead of comparators
 // in your designs for current control or other voltage monitoring operations.
 //
-// This specific module monitors ALL ADC ports and outputs what channel it is currently monitoring so that outside
-// modules can utilize whatever port they need.  Simply read the two links below and connect the XADC pins in the
-// same way here or see the online Wiki on the ADC to use this module.
+// This specific module monitors ALL ADC ports and outputs what channel it is currently monitoring.  It also
+// outputs the channels individually and updates them in order.  Simply read the two links below and connect the 
+// XADC pins in the same way here or see the online Wiki on the ADC to use this module.
 // 
 // Dependencies: 
 // 

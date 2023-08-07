@@ -118,8 +118,6 @@ module Top (
     localparam BOX_DETECT_SPEED = 7'd25; //go slow when finding box
 //#ENDREGION
     
-    wire[7:0] active_adc_ch;
-    wire[15:0] xa_data;
     wire xa_ready;       
     //https://digilent.com/reference/basys3/xadcdemo
     localparam CH6 = 8'h16; //desired xadc channel for left motor
@@ -138,8 +136,6 @@ module Top (
         .vauxp7(vauxp7),      .vauxn7(vauxn7), 
         .vauxp15(vauxp15),    .vauxn15(vauxn15),
         .vp_in(vp_in),        .vn_in(vn_in), 
-        .channel_out(active_adc_ch),
-        .xa_data(xa_data),
         .ready(xa_ready),
         .ch_6(ch_6),
         .ch_7(ch_7),
