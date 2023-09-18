@@ -39,6 +39,7 @@ module PWM_SRC #(parameter FREQ = 100)(input clk, input [6:0] mode, output pwm);
     assign pwm = PWM_REG;
     
     //Another method that uses a 4 bit control instead of 7 bit (useful because you can utilize 4 switches to test)
+    //Mode is from 0->15
     /*assign p_duty = (mode==4'b0000)? 21'd0*(100000000/FREQ)/100:
                     (mode==4'b0001)? 21'd16*(100000000/FREQ)/100:
                     (mode==4'b0010)? 21'd22*(100000000/FREQ)/100:
@@ -58,6 +59,8 @@ module PWM_SRC #(parameter FREQ = 100)(input clk, input [6:0] mode, output pwm);
                     21'd0;*/
 
     //This control scheme means that the decimal input is directly the duty percent of the signal
+    //This means that if the inputted mode=10, then the pwm will be 10%, if mode=90, pwm will be 90%
+    //Mode is from 0->100
      assign p_duty = (mode==7'd0)? 21'd0*(100000000/FREQ)/100:
                     (mode==7'd1)? 21'd1*(100000000/FREQ)/100:
                     (mode==7'd2)? 21'd2*(100000000/FREQ)/100:
