@@ -11,3 +11,6 @@ __Welcome to our public repository__
 \
 \
 ![Cover Pic](https://raw.githubusercontent.com/MarkDannemiller/TTU-Lab1-BC5/main/Repo%20Images/cover%20pic.PNG)
+
+## Note on These Resources
+As time passes, these tutorials will become out of date and increasingly lose their relevance.  The professors of the course have little incentive to provide resources such as these (though they usually provide some), and every semester it is the students that are experts on the tools and resources that future students will need to be successful in the course.  If you have resources, tips, or want to make a guide for this repository, I would very much appreciate that!  There are many ways to do so, and I am more than happy to grant access to anyone that wants to contribute here.  Alternatively, you can email me [mdannemi@ttu.edu](mailto:mdannemi@ttu.edu) and I can do a writeup over anything that is missing from these materials.
